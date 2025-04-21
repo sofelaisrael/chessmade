@@ -17,38 +17,15 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [moves, setMoves] = useState([]);
   const [gameInfo, setGameInfo] = useState({});
-  const [currentTip, setCurrentTip] = useState("");
-  const [isGameInfoVisible, setIsGameInfoVisible] = useState(false);
   const [playerColor, setPlayerColor] = useState("white");
   const [opponentInfo, setOpponentInfo] = useState({ name: "", rating: "" });
   const [userInfo, setUserInfo] = useState({ name: "", rating: "" });
   const chessboardRef = useRef(null);
-  const [kingPositions, setKingPositions] = useState({
-    whiteKing: { top: 0, left: 0 },
-    blackKing: { top: 0, left: 0 },
-  });
   const [showTermination, setShowTermination] = useState(false);
   const popupRef = useRef(null);
 
-  console.log(game, whiteresult, blackresult);
-
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const toggleGameInfo = () => {
-    setIsGameInfoVisible((prev) => !prev);
-  };
-
-  const getPositionTip = (fen, moveIndex) => {
-    if (moveIndex === 0) {
-      return "Game start: White to move.";
-    }
-
-    const fenParts = fen.split(" ");
-    const activeColor = fenParts[1] === "w" ? "White" : "Black";
-
-    return `Move ${moveIndex}: ${activeColor} to move.`;
   };
 
   useEffect(() => {
@@ -96,8 +73,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
       const blackKing = blackKingSquare
         ? getTopLeftFromSquare(blackKingSquare)
         : { top: 0, left: 0 };
-
-      setKingPositions({ whiteKing, blackKing });
     };
 
     if (pgn) {
@@ -122,7 +97,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
         chess.reset();
         history.forEach((move) => chess.move(move));
 
-        setCurrentTip(getPositionTip(chess.fen(), history.length));
 
         calculateKingPositions();
 
@@ -137,7 +111,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
       setMoves([]);
       setCurrentMoveIndex(0);
       setGameInfo({});
-      setCurrentTip("");
     }
   }, [pgn, chess]);
 
@@ -161,7 +134,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
       const newIndex = Math.max(0, Math.min(moves.length, prev + delta));
       chess.reset();
       moves.slice(0, newIndex).forEach((move) => chess.move(move));
-      setCurrentTip(getPositionTip(chess.fen(), newIndex));
       setShowTermination(false);
 
       return newIndex;
@@ -171,7 +143,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
   const navigateToStart = () => {
     chess.reset();
     setCurrentMoveIndex(0);
-    setCurrentTip(getPositionTip(chess.fen(), 1));
     setShowTermination(false);
   };
 
@@ -179,7 +150,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
     chess.reset();
     moves.forEach((move) => chess.move(move));
     setCurrentMoveIndex(moves.length);
-    setCurrentTip(getPositionTip(chess.fen(), moves.length));
     setShowTermination(false);
   };
 
@@ -236,7 +206,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
     }
   };
 
-  // console.log(gameInfo.Termination, opponentInfo, playerColor, blackresult, whiteresult);
 
   return (
     <div className="space-y-4">
@@ -263,9 +232,9 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
               className="size-6 p-1 rounded-full flex justify-center items-center icon-animation relative text-[9px]"
             >
               {playerColor === "white" ? (
-                <div className="ch">{getGameStatusIcon(blackresult)}</div>
+                <div className="ch font-bold">{getGameStatusIcon(blackresult)}</div>
               ) : (
-                <div className="ch">{getGameStatusIcon(whiteresult)}</div>
+                <div className="ch font-bold">{getGameStatusIcon(whiteresult)}</div>
               )}
             </div>
           )}
@@ -280,20 +249,19 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
           customDarkSquareStyle={{ backgroundColor: "#171D27" }}
           customLightSquareStyle={{ backgroundColor: "#373D49" }}
           customBoardStyle={{borderRadius: "5px"}}
-          // piece
           boardOrientation={playerColor}
           position={chess.fen()}
         />
         {showTermination && (
           <div
             ref={popupRef}
-            className="bg-whie p-6 rounded-lg backdrop-blur-2xl shadow-lg w-fit absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2"
+            className="bg-whie p-6 rounded-lg backdrop-blur-2xl shadow-lg w-fit absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 text-white font-bold leading-[15px]"
           >
             <p>{gameInfo.Termination}</p>
 
             <button
               onClick={closePopup}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              className="absolute top-2 right-2 text-white hover:text-gray-700"
             >
               <AiOutlineClose className="w-6 h-6" />
             </button>
@@ -324,9 +292,9 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
               className="size-6 rounded-full flex justify-center items-center icon-animation relative text-[9px]"
             >
               {playerColor === "white" ? (
-                <div className="ch">{getGameStatusIcon(whiteresult)}</div>
+                <div className="ch font-bold">{getGameStatusIcon(whiteresult)}</div>
               ) : (
-                <div className="ch">{getGameStatusIcon(blackresult)}</div>
+                <div className="ch font-bold">{getGameStatusIcon(blackresult)}</div>
               )}
             </div>
           )}
@@ -387,7 +355,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
                     chess.reset();
                     moves.slice(0, index + 1).forEach((m) => chess.move(m));
                     setCurrentMoveIndex(index + 1);
-                    setCurrentTip(getPositionTip(chess.fen(), index + 1));
                   }}
                 >
                   {index % 2 === 0 ? `${Math.floor(index / 2) + 1}.` : ""}{" "}

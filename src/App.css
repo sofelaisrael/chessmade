@@ -30,24 +30,3 @@
     /* position: relative; */
   }
   
-
-  .skeleton {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .skeleton > span {
-    width: 250px;
-    height: 150px;
-  }
-
-  @media screen and (max-width: 768px) {
-    .skeleton {
-      gap: 1px;
-    }
-    .skeleton > span {
-      width: 100%;
-      height: 150px;
-    }
-  }

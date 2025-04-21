@@ -18,7 +18,6 @@ import ecoE from "./data/ecoE.json";
 import { Chess } from "chess.js";
 
 
-// Build fast-access Map for all ECO openings
 const combinedOpenings = { ...ecoA, ...ecoB, ...ecoC, ...ecoD, ...ecoE };
 const openingMap = new Map();
 
@@ -45,7 +44,6 @@ function App() {
   const [filteredGames, setFilteredGames] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [opponentList, setOpponentList] = useState([]);
-  const [showAnalytics, setShowAnalytics] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [hasSelectedFilter, setHasSelectedFilter] = useState(false);
@@ -108,13 +106,13 @@ function App() {
     }
   };
 
-  // Run generateOpponentOpeningList in background after profile and games are loaded
+  
   useEffect(() => {
     if (profile && allGames.length > 0) {
       setTimeout(() => {
         const list = generateOpponentOpeningList(allGames);
         setOpponentList(list);
-      }, 100); // small async delay to avoid blocking main thread
+      }, 100);
     }
   }, [profile, allGames]);
 
@@ -165,7 +163,7 @@ function App() {
   const getOpeningNameFromMoves = (moves, ecoCode = null) => {
     const normalized = normalizeMoves(moves);
 
-    // If ECO code is provided, try to match from that section first
+    
     if (ecoCode) {
       const candidates = Object.values(combinedOpenings).filter(
         (o) => o.eco === ecoCode
@@ -174,12 +172,12 @@ function App() {
       for (const opening of candidates) {
         const openingMoves = normalizeMoves(opening.moves);
         if (normalized.startsWith(openingMoves)) {
-          return opening.name.split(/[:|,]/)[0].trim(); // Return base name
+          return opening.name.split(/[:|,]/)[0].trim(); 
         }
       }
     }
 
-    // Fallback: try to match from all known moves if ECO fails
+    
     for (const [name, moveList] of openingMap.entries()) {
       for (const sequence of moveList) {
         if (normalized.startsWith(sequence)) {
@@ -226,7 +224,7 @@ function App() {
   const handleDropdownSelect = async (item) => {
     setSearchQuery(item.value);
     setHasSelectedFilter(true);
-    setIsFiltering(true); // start loading
+    setIsFiltering(true); 
 
     try {
       if (item.type === "opponent") {
@@ -263,7 +261,7 @@ function App() {
         setSelectedGame(null);
       }
     } finally {
-      setIsFiltering(false); // end loading
+      setIsFiltering(false);
     }
   };
 
@@ -288,18 +286,17 @@ function App() {
           }
         });
 
-        // Sort months numerically for each year
+        
         Object.keys(map).forEach((year) => {
           map[year] = map[year].sort((a, b) => Number(a) - Number(b));
         });
 
-        const sortedYears = Object.keys(map).sort((a, b) => b - a); // most recent first
+        const sortedYears = Object.keys(map).sort((a, b) => b - a); 
 
         setArchives(map);
         if (sortedYears.length > 0) {
           setYear(sortedYears[0]);
         }
-        console.log(year, sortedYears, map);
       } catch (error) {
         console.error("Failed to fetch archives:", error);
       }
@@ -360,16 +357,16 @@ function App() {
           </div>
         ) : loading ? (
           <div className="flex flex-col items-center h-[60vh] justify-center">
-            <h2 className="text-xl font-semibold text-gray-700 ttext-center">
+            <h2 className="text-xl font-semibold text-white text-center">
               Fetching games for {username}...
             </h2>
-            <div className="w-full max-w-md bg-gray-200 rounded-full h-4 mt-4">
+            <div className="w-full max-w-md bg-white rounded-full h-4 mt-4">
               <div
-                className="bg-blue-500 h-4 rounded-full"
+                className="bg-b[#5ed3f3] h-4 rounded-full"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
-            <p className="text-gray-600 mt-2">{progress}% completed</p>
+            <p className="text-white mt-2">{progress}% completed</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -385,7 +382,7 @@ function App() {
                       onFocus={() => setShowDropdown(true)}
                       onBlur={() =>
                         setTimeout(() => setShowDropdown(false), 150)
-                      } // slight delay to allow click
+                      }
                       className="w-full px-4 py-2 border border-transparent rounded-lg outline-none bg-[#1A1A1A] text-white focus:border-[#5ED3F3]"
                     />
 
@@ -490,7 +487,7 @@ function App() {
             <div className="lg:col-span-2 pt-5">
               <GamesList
                 username={username}
-                games={filteredGames}
+                fullgames={filteredGames}
                 onSelectGame={setSelectedGame}
                 archives={archives}
                 selectedYear={year}

@@ -1,48 +1,28 @@
 import { RxCaretDown } from "react-icons/rx";
-import { MdNavigateBefore } from "react-icons/md";
-import { MdNavigateNext } from "react-icons/md";
-import { FaChessKnight } from "react-icons/fa";
+import { MdNavigateBefore, MdNavigateNext } from "react-icons/md";
 import { TiEquals } from "react-icons/ti";
 import { BiPlus, BiMinus } from "react-icons/bi";
 import React, { useState, useEffect, useRef } from "react";
-import { getMonthlyGames } from "../lib/chesscom";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { format, isBefore, isAfter, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 
 const GamesList = ({
   username = "",
   onSelectGame,
+  fullgames = [],
   archives,
   setSelectedYear,
   selectedYear,
 }) => {
-  useEffect(() => {
-    if (archives[selectedYear]?.length > 0) {
-      // Sort months descending and pick the last one user played in that year
-      const sortedMonths = [...archives[selectedYear]].sort((a, b) => b - a);
-      const latestMonth = parseInt(sortedMonths[0]); // e.g. 12 for December
-      const defaultDate = new Date(parseInt(selectedYear), latestMonth - 1); // JS months are 0-indexed
-      setSelectedMonth(defaultDate);
-    }
-  }, [selectedYear, archives]);
-
-  const [games, setGames] = useState([]); // Games fetched for the selected month
-  const [statsFilteredGames, setStatsFilteredGames] = useState([]); // Games filtered by stats
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date());
+  const [filteredMonthGames, setFilteredMonthGames] = useState([]);
+  const [statsFilteredGames, setStatsFilteredGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const gamesPerPage = 6;
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date());
-  const [filters, setFilters] = useState({
-    result: "all", // win, loss, draw, all
-    color: "all", // white, black, all
-  });
-  const indexOfLastGame = currentPage * gamesPerPage;
-  const indexOfFirstGame = indexOfLastGame - gamesPerPage;
-  const currentStatsGames = statsFilteredGames.slice(
-    indexOfFirstGame,
-    indexOfLastGame
-  );
+
+  const [filters, setFilters] = useState({ result: "all", color: "all" });
   const [showResultDropdown, setShowResultDropdown] = useState(false);
   const [showColorDropdown, setShowColorDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
@@ -63,138 +43,141 @@ const GamesList = ({
         setShowYearDropdown(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (archives[selectedYear]?.length > 0) {
+      const sortedMonths = [...archives[selectedYear]].sort((a, b) => b - a);
+      const latestMonth = parseInt(sortedMonths[0]);
+      const defaultDate = new Date(parseInt(selectedYear), latestMonth - 1);
+      setSelectedMonth(defaultDate);
+    }
+  }, [selectedYear]);
+
+  useEffect(() => {
+    if (!selectedMonth || fullgames.length === 0) return;
+    setLoading(true);
+
+    const year = selectedMonth.getFullYear();
+    const month = selectedMonth.getMonth() + 1;
+
+    const monthGames = fullgames.filter((game) => {
+      const date = new Date(game.end_time * 1000);
+      return date.getFullYear() === year && date.getMonth() + 1 === month;
+    });
+
+    setFilteredMonthGames(monthGames.reverse());
+    setCurrentPage(1);
+    setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, [selectedMonth, fullgames]);
+
+  useEffect(() => {
+    let filtered = filteredMonthGames;
+
+    if (filters.result !== "all") {
+      filtered = filtered.filter((game) => {
+        const playerColor =
+          game.white.username.toLowerCase() === username.toLowerCase()
+            ? "white"
+            : "black";
+        if (filters.result === "win") {
+          return (
+            (playerColor === "white" && game.white.result === "win") ||
+            (playerColor === "black" && game.black.result === "win")
+          );
+        }
+        if (filters.result === "loss") {
+          return (
+            (playerColor === "white" && game.black.result === "win") ||
+            (playerColor === "black" && game.white.result === "win")
+          );
+        }
+        if (filters.result === "draw") {
+          return [
+            "insufficient",
+            "repetition",
+            "agreed",
+            "50move",
+            "stalemate",
+            "timevsinsufficient",
+            "timeoutvsinsufficient",
+          ].includes(game.white.result);
+        }
+        return true;
+      });
+    }
+
+    if (filters.color !== "all") {
+      filtered = filtered.filter((game) => {
+        const playerColor =
+          game.white.username.toLowerCase() === username.toLowerCase()
+            ? "white"
+            : "black";
+        return playerColor === filters.color;
+      });
+    }
+
+    setStatsFilteredGames(filtered);
+    setCurrentPage(1);
+  }, [filteredMonthGames, filters]);
+
+  const handleFilterChange = (filterName, value) => {
+    setFilters((prev) => ({ ...prev, [filterName]: value }));
+  };
+
   const handleNextPage = () => {
     if (currentPage < Math.ceil(statsFilteredGames.length / gamesPerPage)) {
-      setCurrentPage((prevPage) => prevPage + 1);
+      setCurrentPage((prev) => prev + 1);
     }
   };
 
   const handlePreviousPage = () => {
     if (currentPage > 1) {
-      setCurrentPage((prevPage) => prevPage - 1);
+      setCurrentPage((prev) => prev - 1);
     }
   };
+
+  const currentGames = statsFilteredGames.slice(
+    (currentPage - 1) * gamesPerPage,
+    currentPage * gamesPerPage
+  );
 
   const formatTimeControl = (timeControl) => {
     const [initial, increment] = timeControl.split("+").map(Number);
     return `${initial / 60} min${increment ? ` + ${increment}s` : ""}`;
   };
 
-  const handleFilterChange = (filterName, value) => {
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      [filterName]: value,
-    }));
-  };
-
-  useEffect(() => {
-    const fetchGames = async () => {
-      setLoading(true);
-      try {
-        const monthlyGames = await getMonthlyGames(
-          username,
-          selectedMonth.getFullYear(),
-          selectedMonth.getMonth() + 1
-        );
-        setGames(monthlyGames);
-        setLoading(false);
-      } catch (error) {
-        console.error("Failed to fetch games:", error);
-        setLoading(true);
-      }
-    };
-
-    fetchGames();
-  }, [username, selectedMonth]);
-
-  useEffect(() => {
-    const applyStatsFilters = () => {
-      let filtered = games;
-
-      if (filters.result !== "all") {
-        filtered = filtered.filter((game) => {
-          // console.log(game)
-          const playerColor =
-            game.white.username.toLocaleLowerCase() === username
-              ? "white"
-              : "black";
-          if (filters.result === "win") {
-            return (
-              (playerColor === "white" && game.white.result === "win") ||
-              (playerColor === "black" && game.black.result === "win")
-            );
-          }
-          if (filters.result === "loss") {
-            return (
-              (playerColor === "white" && game.black.result === "win") ||
-              (playerColor === "black" && game.white.result === "win")
-            );
-          }
-          if (filters.result === "draw") {
-            return (
-              game.white.result === "insufficient" ||
-              game.white.result === "repetition" ||
-              game.white.result === "agreed" ||
-              game.white.result === "50move" ||
-              game.white.result === "stalemate" ||
-              game.white.result === "timevsinsufficient" ||
-              game.white.result === "timeoutvsinsufficient"
-            );
-          }
-          return true;
-        });
-      }
-
-      if (filters.color !== "all") {
-        filtered = filtered.filter((game) => {
-          const playerColor =
-            game.white.username.toLocaleLowerCase() === username
-              ? "white"
-              : "black";
-          return playerColor === filters.color;
-        });
-      }
-
-      setStatsFilteredGames(filtered);
-      setCurrentPage(1);
-    };
-
-    applyStatsFilters();
-  }, [games, filters]);
-
   return (
     <div>
-      {/* Month Selector Grid */}
+      {/* Month Grid + Year Selector */}
       <div className="flex justify-between max-md:flex-col">
         <div className="flex gap-3 w-[70%] flex-wrap max-md:w-full max-md:gap-x-1 max-md:justify-evenly">
-          {Array.from({ length: 12 }).map((_, index) => {
-            const monthDate = new Date(0, index); // dummy date to get month name
-            const monthName = monthDate.toLocaleString("default", {
+          {Array.from({ length: 12 }).map((_, i) => {
+            const monthName = new Date(0, i).toLocaleString("default", {
               month: "short",
             });
-            const monthNumber = (index + 1).toString().padStart(2, "0");
-            const isAvailable = archives[selectedYear]?.includes(monthNumber);
+            const monthStr = String(i + 1).padStart(2, "0");
+            const isAvailable = archives[selectedYear]?.includes(monthStr);
 
             return (
               <button
-                key={index}
+                key={i}
                 className={`rounded text-sm w-[50px] h-[30px] ${
                   isAvailable
-                    ? "bg-[#1e1e1e] text-white hover:bg-[#fff] cursor-pointer hover:text-[#1e1e1e]"
+                    ? "bg-[#1e1e1e] text-white hover:bg-[#fff] hover:text-[#1e1e1e]"
                     : "bg-gray-200 opacity-25 text-gray-400"
                 } ${
-                  selectedMonth.getMonth() === index
+                  selectedMonth?.getMonth() === i
                     ? "bg-[#373D49] border border-[#777]"
                     : ""
                 }`}
                 disabled={!isAvailable}
                 onClick={() =>
-                  setSelectedMonth(new Date(parseInt(selectedYear), index))
+                  setSelectedMonth(new Date(parseInt(selectedYear), i))
                 }
               >
                 {monthName}
@@ -203,29 +186,29 @@ const GamesList = ({
           })}
         </div>
 
+        {/* Year Dropdown */}
         <div className="relative max-md:pt-2 max-md:ml-auto" ref={yearRef}>
           <button
             onClick={() => setShowYearDropdown(!showYearDropdown)}
             className="p-2 border rounded text-white bg-[#1e1e1e] w-24 flex items-center justify-between border-[#777]"
           >
             {selectedYear}
-
             <RxCaretDown />
           </button>
           {showYearDropdown && (
             <ul className="absolute z-10 mt-1 bg-[#1e1e1e] border rounded w-24 text-white border-[#777]">
               {Object.keys(archives)
                 .sort((a, b) => b - a)
-                .map((yearOption) => (
+                .map((y) => (
                   <li
-                    key={yearOption}
+                    key={y}
                     className="px-4 py-2 hover:bg-[#333] cursor-pointer"
                     onClick={() => {
-                      setSelectedYear(yearOption);
+                      setSelectedYear(y);
                       setShowYearDropdown(false);
                     }}
                   >
-                    {yearOption}
+                    {y}
                   </li>
                 ))}
             </ul>
@@ -233,15 +216,15 @@ const GamesList = ({
         </div>
       </div>
 
-      {/* Stats Filters */}
+      {/* Filters */}
       <div className="flex space-x-4 items-center my-4 max-md:gap-3 relative max-md:flex-col max-md:items-start">
         {/* Result Filter */}
-        <div className="res flex items-center gap-5  ">
+        <div className="res flex items-center gap-5">
           <span className="text-white font-bold">Results:</span>
           <div className="relative" ref={resultRef}>
             <button
               onClick={() => setShowResultDropdown(!showResultDropdown)}
-              className="p-2 border rounded text-white bg-[#1e1e1e] w-32 text-left flex items-center justify-between relative border-[#777]"
+              className="p-2 border rounded text-white bg-[#1e1e1e] w-32 text-left flex items-center justify-between border-[#777]"
             >
               {filters.result.charAt(0).toUpperCase() + filters.result.slice(1)}
               <RxCaretDown />
@@ -264,19 +247,20 @@ const GamesList = ({
             )}
           </div>
         </div>
-        <div className="col  items-center flex gap-5">
-          <span className="text-white font-bold ">Colors:</span>
-          {/* Color Filter */}
+
+        {/* Color Filter */}
+        <div className="col flex items-center gap-5">
+          <span className="text-white font-bold">Colors:</span>
           <div className="relative" ref={colorRef}>
             <button
               onClick={() => setShowColorDropdown(!showColorDropdown)}
-              className="p-2 border rounded text-white bg-[#1e1e1e] w-32 text-left flex justify-between items-center relative border-[#777]"
+              className="p-2 border rounded text-white bg-[#1e1e1e] w-32 text-left flex justify-between items-center border-[#777]"
             >
               {filters.color.charAt(0).toUpperCase() + filters.color.slice(1)}
               <RxCaretDown />
             </button>
             {showColorDropdown && (
-              <ul className="absolute z-10 mt-1 bg-[#1e1e1e] border rounded w-32 text-white overflow-hidden border-[#777]">
+              <ul className="absolute z-10 mt-1 bg-[#1e1e1e] border rounded w-32 text-white border-[#777]">
                 {["all", "white", "black"].map((option) => (
                   <li
                     key={option}
@@ -295,129 +279,83 @@ const GamesList = ({
         </div>
       </div>
 
-      {/* Stats Filtered Games */}
+      {/* Game List */}
       <div>
-        
-        {loading ? (
-          <SkeletonTheme baseColor="#1e1e1e" highlightColor="#292929">
-            <Skeleton containerClassName="skeleton" count={6} />
-          </SkeletonTheme>
-        ) : (
-          <ul className=" flex flex-wrap gap-4 place-items-start">
-            {currentStatsGames.map((game) => {
-              const playerColor =
-                game.white.username === username ? "white" : "black";
-              // console.log(game)
-              return (
-                <li
-                  key={game.url}
-                  className="border rounded-lg p-4 text-white border-[#494949] cursor-pointer transition-colors bg-[#1e1e1e] hover:bg-[#1a1a1a] w-[250px] max-md:w-full"
-                  onClick={() => onSelectGame(game)}
-                >
-                  <div className="flex">
-                    <div className="side flex flex-col gap-5 w-full">
-                      <div className="white flex items-center justify-between">
-                        <div className="user flex items-center gap-2">
-                          <div className="bg-white rounded-full size-3" />
-                          <span className="font-medium">
-                            {game.white.username.slice(0, 12)}{" "}
-                            {game.white.username.length > 12 ? "..." : ""}
-                          </span>
-                          <span className="text-gray-500">
-                            ({game.white.rating})
-                          </span>
-                        </div>
-
-                        <div className="white result">
-                          {game.white.result === "win" ? (
-                            <BiPlus className="bg-[#69923e] text-white text-[20px]" />
-                          ) : game.black.result === "win" ? (
-                            <BiMinus className="bg-[#964d22] text-white text-[20px]" />
-                          ) : (
-                            <TiEquals className="bg-gray-500 text-white text-[20px]" />
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="black flex items-center justify-between">
-                        <div className="user flex items-center gap-2">
-                          <div className="bg-black rounded-full size-3" />
-                          <span className="font-medium">
-                            {game.black.username.slice(0, 12)}{" "}
-                            {game.black.username.length > 12 ? "..." : ""}
-                          </span>
-                          <span className="text-gray-500">
-                            ({game.black.rating})
-                          </span>
-                        </div>
-
-                        <div className="result">
-                          <div className="black">
-                            {game.black.result === "win" ? (
-                              <BiPlus className="bg-[#69923e] text-white text-[20px]" />
-                            ) : game.white.result === "win" ? (
-                              <BiMinus className="bg-[#964d22] text-white text-[20px]" />
-                            ) : (
-                              <TiEquals className="bg-gray-500 text-white text-[20px]" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center space-x-2">
-                          <div
-                            className={`w-3 h-3 rounded-full bg-gray-800`}
-                          ></div>
-                          <span className="font-medium">
-                            {game.black.username}
-                          </span>
-                        </div>
-                        <span className="text-gray-600">
-                          {game.black.rating}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-center space-x-2">
-                          {/* <Star size={16} className="text-gray-500" /> 
-                          <span className="text-sm text-gray-600">
-                            {game.rated ? "Rated" : "Unrated"}
-                          </span>
-                        </div>
-                        <a
-                          href={game.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-sm"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {/* <ExternalLink size={14} /> 
-                          <span>Chess.com</span>
-                        </a>
-                      </div>
-                    </div> */}
-                  </div>
-
+        <ul className="flex flex-wrap gap-4">
+          {currentGames.map((game) => {
+            const playerColor =
+              game.white.username.toLowerCase() === username.toLowerCase()
+                ? "white"
+                : "black";
+            return (
+              <li
+                key={game.url}
+                onClick={() => onSelectGame(game)}
+                className="border rounded-lg p-4 text-white border-[#494949] cursor-pointer bg-[#1e1e1e] hover:bg-[#1a1a1a] w-[250px] max-md:w-full"
+              >
+                <div className="flex flex-col gap-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 my-3">
-                      {game.time_class} • {formatTimeControl(game.time_control)}
+                    <span className="text-sm font-medium flex items-center gap-1">
+                      vs.{" "}
+                      {playerColor === "white"
+                        ? game.black.username.slice(0, 12)
+                        : game.white.username.slice(0, 12)}
+                      {game.black.username.length > 12 ||
+                      game.white.username.length > 12
+                        ? "..."
+                        : ""}
+                      <div
+                        className={`size-3 rounded-full border bg-${
+                          playerColor === "black"
+                            ? "white border-black"
+                            : "border-white black"
+                        }`}
+                      ></div>
                     </span>
-
-                    <span className="rated my-3 text-sm text-gray-600">
-                      {game.rated ? "rated" : "unrated"}{" "}
+                    <span className="text-xs text-gray-400">
+                      {formatTimeControl(game.time_control)}
                     </span>
                   </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-400">
+                      {game.time_class.toUpperCase()}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {game.rated ? "Rated" : "Unrated"}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between mt-2">
+                    {playerColor === "white" ? (
+                      game.white.result === "win" ? (
+                        <BiPlus className="text-green-500" />
+                      ) : game.black.result === "win" ? (
+                        <BiMinus className="text-red-500" />
+                      ) : (
+                        <TiEquals className="text-gray-400" />
+                      )
+                    ) : game.black.result === "win" ? (
+                      <BiPlus className="text-green-500" />
+                    ) : game.white.result === "win" ? (
+                      <BiMinus className="text-red-500" />
+                    ) : (
+                      <TiEquals className="text-gray-400" />
+                    )}
+
+                    <span className="text-gray-400 text-xs">
+                      {playerColor === "black" ? game.black.rating : game.white.rating }
+                      </span>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
       {/* Pagination */}
-      {currentStatsGames.length > 1 && (
+      {statsFilteredGames.length > gamesPerPage && (
         <div className="flex mt-4 text-white items-center gap-5">
           <button
             onClick={handlePreviousPage}
@@ -436,7 +374,7 @@ const GamesList = ({
               currentPage ===
               Math.ceil(statsFilteredGames.length / gamesPerPage)
             }
-            className="p-2  border border-[#777] rounded disabled:opacity-50"
+            className="p-2 border border-[#777] rounded disabled:opacity-50"
           >
             <MdNavigateNext />
           </button>

@@ -189,37 +189,10 @@ function App() {
     return null;
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    filterGames(searchQuery);
-  };
-
   const handleSearchQueryChange = (e) => {
     setSearchQuery(e.target.value);
   };
 
-  const filterGames = (query) => {
-    const q = query.toLowerCase();
-    const filtered = allGames.filter((game) => {
-      const opponent =
-        game.white.username.toLowerCase() === username.toLowerCase()
-          ? game.black.username
-          : game.white.username;
-
-      const chess = new Chess();
-      try {
-        chess.loadPgn(game.pgn);
-        const moves = chess.history().join(" ");
-        const opening = getOpeningNameFromMoves(moves)?.toLowerCase() || "";
-        return opponent.toLowerCase().includes(q) || opening.includes(q);
-      } catch {
-        return false;
-      }
-    });
-
-    setFilteredGames(filtered);
-    setHasSelectedFilter(true);
-  };
 
   const handleDropdownSelect = async (item) => {
     setSearchQuery(item.value);
@@ -373,7 +346,7 @@ function App() {
             <div className="lg:col-span-1">
               <div className="py-4 w-full">
                 <div className="flex flex-col space-y-2 relative">
-                  <form onSubmit={handleSearch} className="relative">
+                  <form onSubmit={(e) =>  e.preventDefault()} className="relative">
                     <input
                       type="text"
                       placeholder="Search opponents or openings..."
@@ -453,18 +426,21 @@ function App() {
                           className="p-2 border border-[#494949] rounded-lg hover:bg-[#333] cursor-pointer flex items-center justify-between"
                           onClick={() => setSelectedGame(game)}
                         >
-                          <div className="flex items-center gap-3">
-                            <BiUser />
+                          <div className="flex items-center gap-3 truncate w-[70%]">
+                            <BiUser className="shrink-0" />
                             {game.white.username.toLocaleLowerCase() ===
                             username.toLocaleLowerCase() ? (
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-3 truncate">
+                                <div className="size-3 bg-black rounded-full border shrink-0"></div>
+                                <div className="truncate">
+                                  
                                 {game.black.username}
-                                <div className="size-3 bg-black rounded-full border "></div>
+                                </div>
                               </div>
                             ) : (
                               <div className="flex items-center gap-3">
-                                {game.white.username}
                                 <div className="size-3 bg-white rounded-full border "></div>
+                                {game.white.username}
                               </div>
                             )}
                           </div>
@@ -487,7 +463,7 @@ function App() {
             <div className="lg:col-span-2 pt-5">
               <GamesList
                 username={username}
-                fullgames={filteredGames}
+                fullgames={allGames}
                 onSelectGame={setSelectedGame}
                 archives={archives}
                 selectedYear={year}

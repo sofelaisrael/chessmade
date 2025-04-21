@@ -295,24 +295,22 @@ const GamesList = ({
               >
                 <div className="flex flex-col gap-2">
                   <div className="flex justify-between">
-                    <span className="text-sm font-medium flex items-center gap-1">
+                    <div className="text-sm font-medium flex items-center gap-1 truncate w-[80%]">
                       vs.{" "}
-                      {playerColor === "white"
-                        ? game.black.username.slice(0, 12)
-                        : game.white.username.slice(0, 12)}
-                      {game.black.username.length > 12 ||
-                      game.white.username.length > 12
-                        ? "..."
-                        : ""}
                       <div
-                        className={`size-3 rounded-full border bg-${
+                        className={`size-3 shrink-0 rounded-full border bg-${
                           playerColor === "black"
                             ? "white border-black"
                             : "border-white black"
                         }`}
                       ></div>
-                    </span>
-                    <span className="text-xs text-gray-400">
+                      <div className="truncate">
+                        {playerColor === "white"
+                          ? game.black.username
+                          : game.white.username}
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-400 shrink-0">
                       {formatTimeControl(game.time_control)}
                     </span>
                   </div>
@@ -344,8 +342,10 @@ const GamesList = ({
                     )}
 
                     <span className="text-gray-400 text-xs">
-                      {playerColor === "black" ? game.black.rating : game.white.rating }
-                      </span>
+                      {playerColor === "black"
+                        ? game.black.rating
+                        : game.white.rating}
+                    </span>
                   </div>
                 </div>
               </li>

@@ -301,7 +301,7 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
         </div>
       </div>
       {/* {whiteresult} - {blackresult} */}
-      <div className="flex items-center justify-center space-x-4 text-white">
+      <div className="flex items-center justify-center space-x-4 text-white text-[20px]">
         <button
           onClick={navigateToStart}
           className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"

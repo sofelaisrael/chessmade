@@ -17,7 +17,6 @@ import ecoD from "./data/ecoD.json";
 import ecoE from "./data/ecoE.json";
 import { Chess } from "chess.js";
 
-
 const combinedOpenings = { ...ecoA, ...ecoB, ...ecoC, ...ecoD, ...ecoE };
 const openingMap = new Map();
 
@@ -50,8 +49,7 @@ function App() {
   const [isFiltering, setIsFiltering] = useState(false);
   const [archives, setArchives] = useState({});
   const [year, setYear] = useState(null);
-
-
+  
 
   const handleUserSubmit = async (e) => {
     e.preventDefault();
@@ -64,39 +62,51 @@ function App() {
       const data = await res.json();
       setProfile(data);
 
-      if (data.joined) {
-        const joinedDate = new Date(data.joined * 1000);
+      const archiveRes = await fetch(
+        `https://api.chess.com/pub/player/${username}/games/archives`
+      );
+      const archiveData = await archiveRes.json();
+      const archiveUrls = archiveData.archives;
 
-        const currentDate = new Date();
-        const games = [];
-        const totalMonths =
-          (currentDate.getFullYear() - joinedDate.getFullYear()) * 12 +
-          (currentDate.getMonth() - joinedDate.getMonth() + 1);
-        let completedMonths = 0;
-
-        for (
-          let year = joinedDate.getFullYear();
-          year <= currentDate.getFullYear();
-          year++
-        ) {
-          const startMonth =
-            year === joinedDate.getFullYear() ? joinedDate.getMonth() + 1 : 1;
-          const endMonth =
-            year === currentDate.getFullYear()
-              ? currentDate.getMonth() + 1
-              : 12;
-
-          for (let month = startMonth; month <= endMonth; month++) {
-            const monthlyGames = await getMonthlyGames(username, year, month);
-            games.push(...monthlyGames);
-
-            completedMonths++;
-            setProgress(Math.round((completedMonths / totalMonths) * 100));
-          }
+      const archiveMap = {};
+      archiveUrls.forEach((url) => {
+        const match = url.match(/\/(\d{4})\/(\d{1,2})$/);
+        if (match) {
+          const year = match[1];
+          const month = match[2].padStart(2, "0");
+          if (!archiveMap[year]) archiveMap[year] = [];
+          archiveMap[year].push(month);
         }
+      });
 
-        setAllGames(games);
-        setFilteredGames(games);
+      Object.keys(archiveMap).forEach((year) => {
+        archiveMap[year] = archiveMap[year].sort(
+          (a, b) => Number(a) - Number(b)
+        );
+      });
+
+      const sortedYears = Object.keys(archiveMap).sort((a, b) => b - a);
+      setArchives(archiveMap);
+      if (sortedYears.length > 0) {
+        setYear(sortedYears[0]); 
+      }
+
+      if (archiveUrls.length > 0) {
+        const latestArchiveUrl = archiveUrls[archiveUrls.length - 1];
+        const match = latestArchiveUrl.match(/\/(\d{4})\/(\d{1,2})$/);
+
+        if (match) {
+          const [_, yearStr, monthStr] = match;
+          const year = parseInt(yearStr);
+          const month = parseInt(monthStr);
+
+          const monthlyGames = await getMonthlyGames(username, year, month);
+
+          setAllGames(monthlyGames);
+          setFilteredGames(monthlyGames);
+
+          setYear(year.toString());
+        }
       }
     } catch (err) {
       console.error("Error fetching profile/games:", err);
@@ -105,98 +115,14 @@ function App() {
     }
   };
 
-  
-  useEffect(() => {
-    if (profile && allGames.length > 0) {
-      setTimeout(() => {
-        const list = generateOpponentOpeningList(allGames);
-        setOpponentList(list);
-      }, 100);
-    }
-  }, [profile, allGames]);
-
-  const generateOpponentOpeningList = (games) => {
-    const opponentMap = new Map();
-    const openingMapCount = new Map();
-
-    for (const game of games) {
-      const opponent =
-        game.white.username.toLowerCase() === username.toLowerCase()
-          ? game.black.username
-          : game.white.username;
-
-      if (opponent) {
-        opponentMap.set(opponent, (opponentMap.get(opponent) || 0) + 1);
-      }
-
-      try {
-        const chess = new Chess();
-        chess.loadPgn(game.pgn);
-        const headers = chess.header();
-        const eco = headers["ECO"] || null;
-        const moves = chess.history().join(" ");
-        const openingName = getOpeningNameFromMoves(moves, eco);
-
-        if (openingName) {
-          openingMapCount.set(
-            openingName,
-            (openingMapCount.get(openingName) || 0) + 1
-          );
-        }
-      } catch (err) {
-        continue;
-      }
-    }
-
-    const opponentList = Array.from(opponentMap.entries()).map(
-      ([value, count]) => ({ type: "opponent", value, count })
-    );
-
-    const openingList = Array.from(openingMapCount.entries()).map(
-      ([value, count]) => ({ type: "opening", value, count })
-    );
-
-    return [...opponentList, ...openingList];
-  };
-
-  const getOpeningNameFromMoves = (moves, ecoCode = null) => {
-    const normalized = normalizeMoves(moves);
-
-    
-    if (ecoCode) {
-      const candidates = Object.values(combinedOpenings).filter(
-        (o) => o.eco === ecoCode
-      );
-
-      for (const opening of candidates) {
-        const openingMoves = normalizeMoves(opening.moves);
-        if (normalized.startsWith(openingMoves)) {
-          return opening.name.split(/[:|,]/)[0].trim(); 
-        }
-      }
-    }
-
-    
-    for (const [name, moveList] of openingMap.entries()) {
-      for (const sequence of moveList) {
-        if (normalized.startsWith(sequence)) {
-          return name;
-        }
-      }
-    }
-
-    return null;
-  };
-
   const handleSearchQueryChange = (e) => {
     setSearchQuery(e.target.value);
   };
 
-
   const handleDropdownSelect = async (item) => {
     setSearchQuery(item.value);
     setHasSelectedFilter(true);
-    setIsFiltering(true); 
+    setIsFiltering(true);
 
     try {
       if (item.type === "opponent") {
@@ -237,47 +163,6 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    const fetchArchives = async () => {
-      try {
-        const res = await fetch(
-          `https://api.chess.com/pub/player/${username}/games/archives`
-        );
-        const data = await res.json();
-
-        const map = {};
-
-        data.archives.forEach((url) => {
-          const match = url.match(/\/(\d{4})\/(\d{1,2})$/);
-          if (match) {
-            const year = match[1];
-            const month = match[2].padStart(2, "0");
-
-            if (!map[year]) map[year] = [];
-            map[year].push(month);
-          }
-        });
-
-        
-        Object.keys(map).forEach((year) => {
-          map[year] = map[year].sort((a, b) => Number(a) - Number(b));
-        });
-
-        const sortedYears = Object.keys(map).sort((a, b) => b - a); 
-
-        setArchives(map);
-        if (sortedYears.length > 0) {
-          setYear(sortedYears[0]);
-        }
-      } catch (error) {
-        console.error("Failed to fetch archives:", error);
-      }
-    };
-
-    if (username) {
-      fetchArchives();
-    }
-  }, [profile?.username]);
 
   return (
     <div className="min-h-screen bg-[#0D0D0D]">
@@ -334,7 +219,7 @@ function App() {
             </h2>
             <div className="w-full max-w-md bg-white rounded-full h-4 mt-4">
               <div
-                className="bg-b[#5ed3f3] h-4 rounded-full"
+                className="bg-[#5ed3f3] h-4 rounded-full"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
@@ -345,7 +230,10 @@ function App() {
             <div className="lg:col-span-1">
               <div className="py-4 w-full">
                 <div className="flex flex-col space-y-2 relative">
-                  <form onSubmit={(e) =>  e.preventDefault()} className="relative">
+                  <form
+                    onSubmit={(e) => e.preventDefault()}
+                    className="relative"
+                  >
                     <input
                       type="text"
                       placeholder="Search opponents or openings..."
@@ -391,7 +279,6 @@ function App() {
                             </span>
                             <span className="text-sm font-bold">
                               {item.count}
-                              {/* [{item.type}] */}
                             </span>
                           </li>
                         ))}
@@ -432,8 +319,7 @@ function App() {
                               <div className="flex items-center gap-3 truncate">
                                 <div className="size-3 bg-black rounded-full border shrink-0"></div>
                                 <div className="truncate">
-                                  
-                                {game.black.username}
+                                  {game.black.username}
                                 </div>
                               </div>
                             ) : (
@@ -456,7 +342,6 @@ function App() {
                   )}
                 </div>
               )}
-
             </div>
 
             <div className="lg:col-span-2 pt-5">

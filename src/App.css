@@ -13,20 +13,17 @@
 }
 
 @keyframes fadeInScale {
-    0% {
-      opacity: 0;
-      transform: scale(0);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
+  0% {
+    opacity: 0;
+    transform: scale(0);
   }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 
-  
-  .icon-animation {
-    animation: fadeInScale 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-    animation-fill-mode: forwards;
-    /* position: relative; */
-  }
-  
+.icon-animation {
+  animation: fadeInScale 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  animation-fill-mode: forwards;
+}

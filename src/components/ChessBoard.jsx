@@ -1,4 +1,3 @@
-// ChessBoard.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
@@ -13,7 +12,8 @@ import {
 import { RxExit } from "react-icons/rx";
 import { FaChessKing, FaClock, FaCrown, FaFlag } from "react-icons/fa6";
 
-const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
+const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
+  console.log(game);
   const [chess] = useState(new Chess());
   const [moveTreeRoot, setMoveTreeRoot] = useState(null);
   const [currentNode, setCurrentNode] = useState(null);
@@ -86,19 +86,19 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
     }
     setCurrentMoveIndex(idx);
   };
-  
+
   const goBack = () => {
     if (currentNode?.parent) {
       goToNode(currentNode.parent);
     }
   };
-  
+
   const goForward = () => {
     if (currentNode?.children?.[0]) {
       goToNode(currentNode.children[0]);
     }
   };
-  
+
   const navigateToStart = () => {
     let node = currentNode;
     while (node?.parent) {
@@ -106,7 +106,7 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
     }
     goToNode(node);
   };
-  
+
   const navigateToEnd = () => {
     let node = currentNode;
     while (node?.children?.[0]) {
@@ -114,7 +114,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
     }
     goToNode(node);
   };
-  
 
   const handlePieceDrop = (sourceSquare, targetSquare) => {
     const tempChess = new Chess(currentNode.fen);
@@ -144,15 +143,19 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
     return true;
   };
 
-  const renderMoves = (node, moveNumber = 1, isWhiteMove = true, inVariation = false) => {
+  const renderMoves = (
+    node,
+    moveNumber = 1,
+    isWhiteMove = true,
+    inVariation = false
+  ) => {
     if (!node || node.children.length === 0) return null;
-  
+
     const firstChild = node.children[0];
     const variations = node.children.slice(1);
-  
-    // Mainline move button
+
     const showMoveNumber = isWhiteMove ? `${moveNumber}.` : "";
-  
+
     const moveButton = firstChild && (
       <button
         key={`main-${firstChild.move}`}
@@ -166,17 +169,15 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
         {showMoveNumber} {firstChild.move}
       </button>
     );
-  
-    // Branches
+
     const variationElements = variations.map((child, index) => {
-      // Use current move number and isWhiteMove to start the branch properly
       const branchMoveNumber = moveNumber;
       const branchIsWhite = isWhiteMove;
-  
+
       const branchDisplay = branchIsWhite
         ? `${branchMoveNumber}.`
         : `${branchMoveNumber}...`;
-  
+
       return (
         <span key={`variation-${index}`} className="space-x-1">
           <span className="text-gray-500">(</span>
@@ -193,7 +194,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
             >
               {child.move}
             </button>
-            {/* recursively render branch, passing current turn info */}
             {renderMoves(
               child,
               branchIsWhite ? branchMoveNumber : branchMoveNumber + 1,
@@ -205,11 +205,10 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
         </span>
       );
     });
-  
-    // Advance turn in mainline
+
     const nextMoveNumber = isWhiteMove ? moveNumber : moveNumber + 1;
     const nextIsWhiteMove = !isWhiteMove;
-  
+
     return (
       <span className="space-x-1 space-y-1 text-sm">
         {moveButton}
@@ -218,7 +217,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
       </span>
     );
   };
-  
 
   const getHeaderValue = (headers, name) => {
     const found = headers.find((h) => h.name === name);
@@ -275,15 +273,8 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
         const whiteRating = getHeaderValue(parsed[0].headers, "WhiteElo");
         const blackRating = getHeaderValue(parsed[0].headers, "BlackElo");
 
-
-        console.log(parsed[0], game.moves)
-
-        // const termination =
         setTermination(getHeaderValue(parsed[0].headers, "Termination"));
-        setShowTermination(true)
-        // const date = getHeaderValue(parsed[0].headers, "Date")
-
-        console.log(parsed[0].headers);
+        setShowTermination(true);
 
         if (whiteUsername.toLowerCase() === username.toLowerCase()) {
           setUserInfo({ name: whiteUsername, rating: whiteRating });
@@ -306,7 +297,7 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
       if (e.key === "ArrowLeft") goBack();
       if (e.key === "Home") navigateToStart();
       if (e.key === "End") navigateToEnd();
-      setShowTermination(false)
+      setShowTermination(false);
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
@@ -414,41 +405,40 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
       </div>
 
       <div className="flex items-center justify-center space-x-4 text-white text-[20px]">
-  <button
-    onClick={navigateToStart}
-    className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
-    disabled={!currentNode?.parent}
-    title="Go to start"
-  >
-    <AiFillFastBackward />
-  </button>
-  <button
-    onClick={() => goBack()}
-    className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
-    disabled={!currentNode?.parent}
-    title="Previous move"
-  >
-    <AiFillStepBackward />
-  </button>
+        <button
+          onClick={navigateToStart}
+          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+          disabled={!currentNode?.parent}
+          title="Go to start"
+        >
+          <AiFillFastBackward />
+        </button>
+        <button
+          onClick={() => goBack()}
+          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+          disabled={!currentNode?.parent}
+          title="Previous move"
+        >
+          <AiFillStepBackward />
+        </button>
 
-  <button
-    onClick={() => goForward()}
-    className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
-    disabled={!currentNode?.children?.[0]}
-    title="Next move"
-  >
-    <AiFillStepForward />
-  </button>
-  <button
-    onClick={navigateToEnd}
-    className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
-    disabled={!currentNode?.children?.[0]}
-    title="Go to end"
-  >
-    <AiFillFastForward />
-  </button>
-</div>
-
+        <button
+          onClick={() => goForward()}
+          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+          disabled={!currentNode?.children?.[0]}
+          title="Next move"
+        >
+          <AiFillStepForward />
+        </button>
+        <button
+          onClick={navigateToEnd}
+          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+          disabled={!currentNode?.children?.[0]}
+          title="Go to end"
+        >
+          <AiFillFastForward />
+        </button>
+      </div>
 
       <div className="text-white p-2 rounded shadow text-sm">
         {renderMoves(moveTreeRoot)}

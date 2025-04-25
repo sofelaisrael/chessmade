@@ -1,7 +1,8 @@
+// ChessBoard.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
-
+import { parse } from "pgn-parser";
 import {
   AiOutlineClose,
   AiFillStepForward,
@@ -12,145 +13,48 @@ import {
 import { RxExit } from "react-icons/rx";
 import { FaChessKing, FaClock, FaCrown, FaFlag } from "react-icons/fa6";
 
-const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
+const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
   const [chess] = useState(new Chess());
+  const [moveTreeRoot, setMoveTreeRoot] = useState(null);
+  const [currentNode, setCurrentNode] = useState(null);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
-  const [moves, setMoves] = useState([]);
-  const [gameInfo, setGameInfo] = useState({});
-  const [playerColor, setPlayerColor] = useState("white");
+  const chessboardRef = useRef(null);
   const [opponentInfo, setOpponentInfo] = useState({ name: "", rating: "" });
   const [userInfo, setUserInfo] = useState({ name: "", rating: "" });
-  const chessboardRef = useRef(null);
+  const [playerColor, setPlayerColor] = useState("white");
   const [showTermination, setShowTermination] = useState(false);
+  const [termination, setTermination] = useState(false);
   const popupRef = useRef(null);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    const calculateKingPositions = () => {
-      if (!chessboardRef.current) return;
-
-      const squareSize = chessboardRef.current.offsetWidth / 8;
-
-      const getTopLeftFromSquare = (square) => {
-        const file = square.charCodeAt(0) - 97;
-        const rank = 8 - parseInt(square[1], 10);
-        return {
-          top: rank * squareSize,
-          left: file * squareSize,
-        };
-      };
-
-      const fen = chess.fen();
-      const rows = fen.split(" ")[0].split("/");
-      let whiteKingSquare = null;
-      let blackKingSquare = null;
-
-      rows.forEach((row, rankIndex) => {
-        let fileIndex = 0;
-        for (const char of row) {
-          if (isNaN(char)) {
-            if (char === "K")
-              whiteKingSquare = `${String.fromCharCode(97 + fileIndex)}${
-                8 - rankIndex
-              }`;
-            if (char === "k")
-              blackKingSquare = `${String.fromCharCode(97 + fileIndex)}${
-                8 - rankIndex
-              }`;
-            fileIndex++;
-          } else {
-            fileIndex += parseInt(char, 10);
-          }
-        }
-      });
-
-      const whiteKing = whiteKingSquare
-        ? getTopLeftFromSquare(whiteKingSquare)
-        : { top: 0, left: 0 };
-      const blackKing = blackKingSquare
-        ? getTopLeftFromSquare(blackKingSquare)
-        : { top: 0, left: 0 };
+  const buildTreeFromPGN = (moves, chessInstance, parent = null) => {
+    const node = {
+      move: null,
+      fen: chessInstance.fen(),
+      children: [],
+      parent,
     };
 
-    if (pgn) {
-      try {
-        chess.loadPgn(pgn);
-        const history = chess.history();
-        setMoves(history);
-        setCurrentMoveIndex(history.length);
+    let current = node;
+    for (const moveObj of moves) {
+      const result = chessInstance.move(moveObj.move);
+      const newNode = {
+        move: result.san,
+        fen: chessInstance.fen(),
+        children: [],
+        parent: current,
+      };
+      current.children.push(newNode);
 
-        const headers = chess.header();
-        setGameInfo(headers);
-        if (headers.White.toLocaleLowerCase() === username) {
-          setPlayerColor("white");
-          setUserInfo({ name: headers.White, rating: headers.WhiteElo });
-          setOpponentInfo({ name: headers.Black, rating: headers.BlackElo });
-        } else if (headers.Black.toLocaleLowerCase() === username) {
-          setPlayerColor("black");
-          setUserInfo({ name: headers.Black, rating: headers.BlackElo });
-          setOpponentInfo({ name: headers.White, rating: headers.WhiteElo });
+      if (moveObj.variations) {
+        for (const variation of moveObj.variations) {
+          const branchChess = new Chess(current.fen);
+          const branchNode = buildTreeFromPGN(variation, branchChess, current);
+          current.children.push(...branchNode.children);
         }
-
-        chess.reset();
-        history.forEach((move) => chess.move(move));
-
-
-        calculateKingPositions();
-
-        setShowTermination(true);
-
-        scrollToTop();
-      } catch (error) {
-        console.error("Failed to load PGN:", error);
       }
-    } else {
-      chess.reset();
-      setMoves([]);
-      setCurrentMoveIndex(0);
-      setGameInfo({});
+      current = newNode;
     }
-  }, [pgn, chess]);
-
-  useEffect(() => {
-    function handleKeyDown(e) {
-      if (!moves.length) return;
-
-      if (e.key === "ArrowLeft") {
-        navigateMove(-1);
-      } else if (e.key === "ArrowRight") {
-        navigateMove(1);
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [chess, moves]);
-
-  const navigateMove = (delta) => {
-    setCurrentMoveIndex((prev) => {
-      const newIndex = Math.max(0, Math.min(moves.length, prev + delta));
-      chess.reset();
-      moves.slice(0, newIndex).forEach((move) => chess.move(move));
-      setShowTermination(false);
-
-      return newIndex;
-    });
-  };
-
-  const navigateToStart = () => {
-    chess.reset();
-    setCurrentMoveIndex(0);
-    setShowTermination(false);
-  };
-
-  const navigateToEnd = () => {
-    chess.reset();
-    moves.forEach((move) => chess.move(move));
-    setCurrentMoveIndex(moves.length);
-    setShowTermination(false);
+    return node;
   };
 
   const closePopup = () => {
@@ -169,6 +73,157 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
       document.removeEventListener("mousedown", handleOutsideClick);
     };
   }, []);
+
+  const goToNode = (node) => {
+    if (!node) return;
+    chess.load(node.fen);
+    setCurrentNode(node);
+    let idx = 0;
+    let temp = node;
+    while (temp && temp.parent) {
+      idx++;
+      temp = temp.parent;
+    }
+    setCurrentMoveIndex(idx);
+  };
+  
+  const goBack = () => {
+    if (currentNode?.parent) {
+      goToNode(currentNode.parent);
+    }
+  };
+  
+  const goForward = () => {
+    if (currentNode?.children?.[0]) {
+      goToNode(currentNode.children[0]);
+    }
+  };
+  
+  const navigateToStart = () => {
+    let node = currentNode;
+    while (node?.parent) {
+      node = node.parent;
+    }
+    goToNode(node);
+  };
+  
+  const navigateToEnd = () => {
+    let node = currentNode;
+    while (node?.children?.[0]) {
+      node = node.children[0];
+    }
+    goToNode(node);
+  };
+  
+
+  const handlePieceDrop = (sourceSquare, targetSquare) => {
+    const tempChess = new Chess(currentNode.fen);
+    const move = tempChess.move({
+      from: sourceSquare,
+      to: targetSquare,
+      promotion: "q",
+    });
+    if (!move) return false;
+
+    const existing = currentNode.children.find(
+      (child) => child.move === move.san
+    );
+    if (existing) {
+      goToNode(existing);
+      return true;
+    }
+
+    const newNode = {
+      move: move.san,
+      fen: tempChess.fen(),
+      children: [],
+      parent: currentNode,
+    };
+    currentNode.children.push(newNode);
+    goToNode(newNode);
+    return true;
+  };
+
+  const renderMoves = (node, moveNumber = 1, isWhiteMove = true, inVariation = false) => {
+    if (!node || node.children.length === 0) return null;
+  
+    const firstChild = node.children[0];
+    const variations = node.children.slice(1);
+  
+    // Mainline move button
+    const showMoveNumber = isWhiteMove ? `${moveNumber}.` : "";
+  
+    const moveButton = firstChild && (
+      <button
+        key={`main-${firstChild.move}`}
+        className={`cursor-pointer border rounded ${
+          currentNode === firstChild
+            ? "bg-[#0f0f0f] hover:bg-[#00aa55] border-[#00663d] px-2 py-1"
+            : "bg-[#1e1e1e] px-2 py-1 hover:bg-[#00663d] border-black"
+        } ${inVariation ? "italic text-xs px-1 text-gray-200" : ""}`}
+        onClick={() => goToNode(firstChild)}
+      >
+        {showMoveNumber} {firstChild.move}
+      </button>
+    );
+  
+    // Branches
+    const variationElements = variations.map((child, index) => {
+      // Use current move number and isWhiteMove to start the branch properly
+      const branchMoveNumber = moveNumber;
+      const branchIsWhite = isWhiteMove;
+  
+      const branchDisplay = branchIsWhite
+        ? `${branchMoveNumber}.`
+        : `${branchMoveNumber}...`;
+  
+      return (
+        <span key={`variation-${index}`} className="space-x-1">
+          <span className="text-gray-500">(</span>
+          <span className="flx flexwrap items-center space-x-1 italic text-sm text-gray-500">
+            <span>{branchDisplay}</span>
+            <button
+              key={`branch-${child.move}-${index}`}
+              className={`px-1 border rounded ${
+                currentNode === child
+                  ? "bg-[#0f0f0f] hover:bg-[#00663d] border-[#00663d]"
+                  : "bg-[#1e1e1e] hover:bg-[#00aa55]"
+              }`}
+              onClick={() => goToNode(child)}
+            >
+              {child.move}
+            </button>
+            {/* recursively render branch, passing current turn info */}
+            {renderMoves(
+              child,
+              branchIsWhite ? branchMoveNumber : branchMoveNumber + 1,
+              !branchIsWhite,
+              true
+            )}
+          </span>
+          <span className="text-gray-500">)</span>
+        </span>
+      );
+    });
+  
+    // Advance turn in mainline
+    const nextMoveNumber = isWhiteMove ? moveNumber : moveNumber + 1;
+    const nextIsWhiteMove = !isWhiteMove;
+  
+    return (
+      <span className="space-x-1 space-y-1 text-sm">
+        {moveButton}
+        {variationElements}
+        {renderMoves(firstChild, nextMoveNumber, nextIsWhiteMove, inVariation)}
+      </span>
+    );
+  };
+  
+
+  const getHeaderValue = (headers, name) => {
+    const found = headers.find((h) => h.name === name);
+    return found ? found.value : null;
+  };
 
   const getGameStatusIcon = (result) => {
     switch (result) {
@@ -206,6 +261,56 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
     }
   };
 
+  useEffect(() => {
+    if (pgn && typeof pgn === "string") {
+      try {
+        const parsed = parse(pgn.trim());
+        const game = parsed[0];
+        const chessInstance = new Chess();
+        const tree = buildTreeFromPGN(game.moves, chessInstance);
+        setMoveTreeRoot(tree);
+        goToNode(tree);
+        const whiteUsername = getHeaderValue(parsed[0].headers, "White");
+        const blackUsername = getHeaderValue(parsed[0].headers, "Black");
+        const whiteRating = getHeaderValue(parsed[0].headers, "WhiteElo");
+        const blackRating = getHeaderValue(parsed[0].headers, "BlackElo");
+
+
+        console.log(parsed[0], game.moves)
+
+        // const termination =
+        setTermination(getHeaderValue(parsed[0].headers, "Termination"));
+        setShowTermination(true)
+        // const date = getHeaderValue(parsed[0].headers, "Date")
+
+        console.log(parsed[0].headers);
+
+        if (whiteUsername.toLowerCase() === username.toLowerCase()) {
+          setUserInfo({ name: whiteUsername, rating: whiteRating });
+          setOpponentInfo({ name: blackUsername, rating: blackRating });
+          setPlayerColor("white");
+        } else {
+          setOpponentInfo({ name: whiteUsername, rating: whiteRating });
+          setUserInfo({ name: blackUsername, rating: blackRating });
+          setPlayerColor("black");
+        }
+      } catch (err) {
+        console.error("PGN parse failed", err);
+      }
+    }
+  }, [pgn]);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "ArrowRight") goForward();
+      if (e.key === "ArrowLeft") goBack();
+      if (e.key === "Home") navigateToStart();
+      if (e.key === "End") navigateToEnd();
+      setShowTermination(false)
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [currentNode]);
 
   return (
     <div className="space-y-4">
@@ -216,7 +321,7 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
               {opponentInfo.name} ({opponentInfo.rating})
             </div>
           )}
-          {currentMoveIndex === moves.length && currentMoveIndex !== 0 && (
+          {currentMoveIndex !== 0 && (
             <div
               style={{
                 background: `${
@@ -232,15 +337,18 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
               className="size-6 p-1 rounded-full flex justify-center items-center icon-animation relative text-[9px]"
             >
               {playerColor === "white" ? (
-                <div className="ch font-bold">{getGameStatusIcon(blackresult)}</div>
+                <div className="ch font-bold">
+                  {getGameStatusIcon(blackresult)}
+                </div>
               ) : (
-                <div className="ch font-bold">{getGameStatusIcon(whiteresult)}</div>
+                <div className="ch font-bold">
+                  {getGameStatusIcon(whiteresult)}
+                </div>
               )}
             </div>
           )}
         </div>
       </div>
-
       <div
         className="aspect-square max-w-md mx-auto relative"
         ref={chessboardRef}
@@ -248,16 +356,17 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
         <Chessboard
           customDarkSquareStyle={{ backgroundColor: "#171D27" }}
           customLightSquareStyle={{ backgroundColor: "#373D49" }}
-          customBoardStyle={{borderRadius: "5px"}}
+          customBoardStyle={{ borderRadius: "5px" }}
           boardOrientation={playerColor}
           position={chess.fen()}
+          onPieceDrop={handlePieceDrop}
         />
         {showTermination && (
           <div
             ref={popupRef}
             className="bg-whie p-6 rounded-lg backdrop-blur-2xl shadow-lg w-fit absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 text-white font-bold leading-[15px]"
           >
-            <p>{gameInfo.Termination}</p>
+            <p>{termination}</p>
 
             <button
               onClick={closePopup}
@@ -268,7 +377,6 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
           </div>
         )}
       </div>
-
       <div className="text- p">
         <div className="font-semibold flex items-center gap-2 text-white">
           {userInfo.name && (
@@ -276,7 +384,7 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
               {userInfo.name} ({userInfo.rating})
             </div>
           )}
-          {currentMoveIndex === moves.length && currentMoveIndex !== 0 && (
+          {currentMoveIndex !== 0 && (
             <div
               style={{
                 background: `${
@@ -292,80 +400,61 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
               className="size-6 rounded-full flex justify-center items-center icon-animation relative text-[9px]"
             >
               {playerColor === "white" ? (
-                <div className="ch font-bold">{getGameStatusIcon(whiteresult)}</div>
+                <div className="ch font-bold">
+                  {getGameStatusIcon(whiteresult)}
+                </div>
               ) : (
-                <div className="ch font-bold">{getGameStatusIcon(blackresult)}</div>
+                <div className="ch font-bold">
+                  {getGameStatusIcon(blackresult)}
+                </div>
               )}
             </div>
           )}
         </div>
       </div>
-      {/* {whiteresult} - {blackresult} */}
+
       <div className="flex items-center justify-center space-x-4 text-white text-[20px]">
-        <button
-          onClick={navigateToStart}
-          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
-          disabled={currentMoveIndex === 0}
-          title="Go to start"
-        >
-          <AiFillFastBackward />
-        </button>
-        <button
-          onClick={() => navigateMove(-1)}
-          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
-          disabled={currentMoveIndex === 0}
-          title="Previous move"
-        >
-          <AiFillStepBackward />
-        </button>
-        <span className="font-mono px-4 py-2 bg-[#1e1e1e] rounded-lg">
-          {currentMoveIndex} / {moves.length}
-        </span>
-        <button
-          onClick={() => navigateMove(1)}
-          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
-          disabled={currentMoveIndex === moves.length}
-          title="Next move"
-        >
-          <AiFillStepForward />
-        </button>
-        <button
-          onClick={navigateToEnd}
-          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
-          disabled={currentMoveIndex === moves.length}
-          title="Go to end"
-        >
-          <AiFillFastForward />
-        </button>
+  <button
+    onClick={navigateToStart}
+    className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+    disabled={!currentNode?.parent}
+    title="Go to start"
+  >
+    <AiFillFastBackward />
+  </button>
+  <button
+    onClick={() => goBack()}
+    className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+    disabled={!currentNode?.parent}
+    title="Previous move"
+  >
+    <AiFillStepBackward />
+  </button>
+
+  <button
+    onClick={() => goForward()}
+    className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+    disabled={!currentNode?.children?.[0]}
+    title="Next move"
+  >
+    <AiFillStepForward />
+  </button>
+  <button
+    onClick={navigateToEnd}
+    className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+    disabled={!currentNode?.children?.[0]}
+    title="Go to end"
+  >
+    <AiFillFastForward />
+  </button>
+</div>
+
+
+      <div className="text-white p-2 rounded shadow text-sm">
+        {renderMoves(moveTreeRoot)}
       </div>
-      {pgn && (
-        <div className="space-y-4">
-          <div className="bg-[#1e1e1e] text-white p-4 rounded-lg">
-            <h4 className="font-semibold mb-2">Moves</h4>
-            <div className="flex flex-wrap gap-2">
-              {moves.map((move, index) => (
-                <span
-                  key={index}
-                  className={`px-2 py-1 rounded cursor-pointer transition-colors ${
-                    index < currentMoveIndex
-                      ? "bg-[#0f0f0f] hover:bg-[#00663d]"
-                      : "bg-[#1e1e1e] hover:bg-[#00aa55]"
-                  }`}
-                  onClick={() => {
-                    chess.reset();
-                    moves.slice(0, index + 1).forEach((m) => chess.move(m));
-                    setCurrentMoveIndex(index + 1);
-                  }}
-                >
-                  {index % 2 === 0 ? `${Math.floor(index / 2) + 1}.` : ""}{" "}
-                  {move}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
+
 export default ChessBoard;

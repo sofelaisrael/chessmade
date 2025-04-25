@@ -39,7 +39,6 @@ function App() {
   const [username, setUsername] = useState("");
   const [profile, setProfile] = useState(null);
   const [selectedGame, setSelectedGame] = useState(null);
-  const [startDate, setStartDate] = useState(null);
   const [allGames, setAllGames] = useState([]);
   const [filteredGames, setFilteredGames] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -49,9 +48,10 @@ function App() {
   const [hasSelectedFilter, setHasSelectedFilter] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
-
   const [archives, setArchives] = useState({});
   const [year, setYear] = useState(null);
+
+
 
   const handleUserSubmit = async (e) => {
     e.preventDefault();
@@ -66,7 +66,6 @@ function App() {
 
       if (data.joined) {
         const joinedDate = new Date(data.joined * 1000);
-        setStartDate(joinedDate);
 
         const currentDate = new Date();
         const games = [];

@@ -69,7 +69,6 @@ const GamesList = ({
       const standardGames = games.filter((game) => game.rules === "chess");
 
       setMonthGames(standardGames.reverse());
-      console.log(standardGames);
       setLoading(false);
       setCurrentPage(1);
     };
@@ -124,7 +123,6 @@ const GamesList = ({
     }
 
     setStatsFilteredGames(filtered);
-    console.log(statsFilteredGames);
     setCurrentPage(1);
   }, [monthGames, filters]);
 
@@ -300,7 +298,6 @@ const GamesList = ({
                     ? "white"
                     : "black";
 
-                console.log(game);
                 return (
                   <li
                     key={game.url}

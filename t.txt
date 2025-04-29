@@ -563,7 +563,37 @@ const renderMoves = (node, moveNumber = 1, isWhiteMove = true, inVariation = fal
 
 
 
-
+{showDropdown && opponentList.length > 0 && searchQuery && (
+                    <ul className="rounded shadow-md max-h-40 overflow-y-auto abste bottom-0">
+                      {opponentList
+                        .filter((item) =>
+                          item.value
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase())
+                        )
+                        .map((item, index) => (
+                          <li
+                            key={index}
+                            className="px-4 py-2 hover:bg-[#171D27] text-white cursor-pointer flex justify-between go  mr-2 rounded"
+                            onClick={() => handleDropdownSelect(item)}
+                          >
+                            <span>
+                              <span className="text-sm gap-2 flex items-center ">
+                                {item.type === "opponent" ? (
+                                  <CgUser />
+                                ) : (
+                                  <FaChessPawn />
+                                )}
+                                {item.value}
+                              </span>
+                            </span>
+                            <span className="text-sm font-bold">
+                              {item.count}
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
 
 
 

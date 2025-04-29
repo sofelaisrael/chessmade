@@ -47,9 +47,9 @@ function App() {
   const [hasSelectedFilter, setHasSelectedFilter] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
+  const [dropdownList, setDropdownList] = useState([]);
   const [archives, setArchives] = useState({});
   const [year, setYear] = useState(null);
-  
 
   const handleUserSubmit = async (e) => {
     e.preventDefault();
@@ -88,7 +88,7 @@ function App() {
       const sortedYears = Object.keys(archiveMap).sort((a, b) => b - a);
       setArchives(archiveMap);
       if (sortedYears.length > 0) {
-        setYear(sortedYears[0]); 
+        setYear(sortedYears[0]);
       }
 
       if (archiveUrls.length > 0) {
@@ -104,6 +104,7 @@ function App() {
 
           setAllGames(monthlyGames);
           setFilteredGames(monthlyGames);
+          await generateOpponentOpeningList(monthlyGames);
 
           setYear(year.toString());
         }
@@ -115,8 +116,144 @@ function App() {
     }
   };
 
+  function getOpeningNameFromMoves(moves, eco = null) {
+    const normalizedMoves = normalizeMoves(moves);
+    if (eco) {
+      const opening = Object.values(combinedOpenings).find(
+        (o) => o.eco === eco
+      );
+      if (opening) return opening.name.split(/[:|,]/)[0].trim();
+    }
+
+    for (const [openingName, variations] of openingMap.entries()) {
+      for (const variationMoves of variations) {
+        if (normalizedMoves.startsWith(variationMoves)) {
+          return openingName;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  const generateOpponentOpeningList = async (games) => {
+    const opponents = {};
+    const openings = {};
+    console.log(games)
+
+    for (const game of games) {
+      const opponent =
+        game.white.username.toLowerCase() === username.toLowerCase()
+          ? game.black.username
+          : game.white.username;
+
+      opponents[opponent] = (opponents[opponent] || 0) + 1;
+
+      try {
+        const chess = new Chess();
+        chess.loadPgn(game.pgn);
+        const headers = chess.header();
+        const eco = headers["ECO"] || null;
+        const openingHeader = headers["Opening"] || "";
+
+        let openingName = "";
+
+        if (openingHeader) {
+          // Use PGN header first if available
+          openingName = openingHeader.split(/[:|,]/)[0].trim();
+        } else {
+          // fallback if no opening header
+          const moves = chess
+            .history({ verbose: true })
+            .slice(0, 10) // only first 10 plies
+            .map((move) => move.san)
+            .join(" ");
+          openingName = getOpeningNameFromMoves(moves, eco);
+        }
+
+        if (openingName) {
+          openings[openingName] = (openings[openingName] || 0) + 1;
+        }
+      } catch (error) {
+        console.error("Failed to parse PGN:", error);
+      }
+    }
+
+    const opponentItems = Object.entries(opponents)
+      .map(([name, count]) => ({
+        type: "opponent",
+        value: name,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    const openingItems = Object.entries(openings)
+      .map(([name, count]) => ({
+        type: "opening",
+        value: name,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    setOpponentList([...opponentItems, ...openingItems]);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    filterGames(searchQuery);
+  };
+
+  const filterGames = (query) => {
+    const q = query.toLowerCase();
+    const filtered = allGames.filter((game) => {
+      const opponent =
+        game.white.username.toLowerCase() === username.toLowerCase()
+          ? game.black.username
+          : game.white.username;
+
+      try {
+        const chess = new Chess();
+        chess.loadPgn(game.pgn);
+        const headers = chess.header();
+        const eco = headers["ECO"] || null;
+        const openingHeader = headers["Opening"] || "";
+
+        let opening = "";
+
+        if (openingHeader) {
+          opening = openingHeader.split(/[:|,]/)[0].trim();
+        } else {
+          const moves = chess
+            .history({ verbose: true })
+            .slice(0, 10)
+            .map((move) => move.san)
+            .join(" ");
+          opening = getOpeningNameFromMoves(moves, eco) || "";
+        }
+      } catch {
+        return false;
+      }
+    });
+
+    console.log(q, allGames);
+    setFilteredGames(filtered);
+    setHasSelectedFilter(true);
+  };
+
   const handleSearchQueryChange = (e) => {
-    setSearchQuery(e.target.value);
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    if (value.trim() === "") {
+      setDropdownList(opponentList);
+      return;
+    }
+
+    const filtered = opponentList.filter((item) =>
+      item.value.toLowerCase().includes(value.toLowerCase())
+    );
+
+    setDropdownList(filtered);
   };
 
   const handleDropdownSelect = async (item) => {
@@ -157,12 +294,15 @@ function App() {
 
         setFilteredGames(filtered);
         setSelectedGame(null);
+        const filteredDropdown = opponentList.filter((entry) =>
+          entry.value.toLowerCase().includes(item.value.toLowerCase())
+        );
+        setDropdownList(filteredDropdown);
       }
     } finally {
       setIsFiltering(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-[#0D0D0D]">
@@ -230,10 +370,7 @@ function App() {
             <div className="lg:col-span-1">
               <div className="py-4 w-full">
                 <div className="flex flex-col space-y-2 relative">
-                  <form
-                    onSubmit={(e) => e.preventDefault()}
-                    className="relative"
-                  >
+                  <form onSubmit={handleSearch} className="relative">
                     <input
                       type="text"
                       placeholder="Search opponents or openings..."
@@ -253,35 +390,27 @@ function App() {
                       <AiOutlineSearch size={20} />
                     </button>
                   </form>
-                  {showDropdown && opponentList.length > 0 && searchQuery && (
-                    <ul className="rounded shadow-md max-h-40 overflow-y-auto abste bottom-0">
-                      {opponentList
-                        .filter((item) =>
-                          item.value
-                            .toLowerCase()
-                            .includes(searchQuery.toLowerCase())
-                        )
-                        .map((item, index) => (
-                          <li
-                            key={index}
-                            className="px-4 py-2 hover:bg-[#171D27] text-white cursor-pointer flex justify-between go  mr-2 rounded"
-                            onClick={() => handleDropdownSelect(item)}
-                          >
-                            <span>
-                              <span className="text-sm gap-2 flex items-center ">
-                                {item.type === "opponent" ? (
-                                  <CgUser />
-                                ) : (
-                                  <FaChessPawn />
-                                )}
-                                {item.value}
-                              </span>
-                            </span>
-                            <span className="text-sm font-bold">
-                              {item.count}
-                            </span>
-                          </li>
-                        ))}
+                  {showDropdown && dropdownList.length > 0 && (
+                    <ul className="rounded shadow-md max-h-40 overflow-y-auto absolte bottom-0">
+                      {dropdownList.map((item, index) => (
+                        <li
+                          key={index}
+                          className="px-4 py-2 hover:bg-[#171D27] text-white cursor-pointer flex justify-between mr-2 rounded"
+                          onClick={() => handleDropdownSelect(item)}
+                        >
+                          <span className="text-sm gap-2 flex items-center ">
+                            {item.type === "opponent" ? (
+                              <CgUser />
+                            ) : (
+                              <FaChessPawn />
+                            )}
+                            {item.value}
+                          </span>
+                          <span className="text-sm font-bold">
+                            {item.count}
+                          </span>
+                        </li>
+                      ))}
                     </ul>
                   )}
                 </div>

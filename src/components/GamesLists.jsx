@@ -30,8 +30,7 @@ const GamesLists = ({
   const yearRef = useRef(null);
 
   useEffect(() => {
-
-    setStatsFilteredGames([...games].reverse());
+    setStatsFilteredGames(games.reverse());
     const handleClickOutside = (e) => {
       if (resultRef.current && !resultRef.current.contains(e.target)) {
         setShowResultDropdown(false);
@@ -45,7 +44,7 @@ const GamesLists = ({
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [games]);
+  }, []);
 
   useEffect(() => {
     let filtered = games;
@@ -113,15 +112,10 @@ const GamesLists = ({
     }
   };
 
-  const currentGames = statsFilteredGames.slice(
+  const currentGames = statsFilteredGames.sort((a, b) => b.end_time - a.end_time).slice(
     (currentPage - 1) * gamesPerPage,
     currentPage * gamesPerPage
   );
-
-  const formatTimeControl = (timeControl) => {
-    const [initial, increment] = timeControl.split("+").map(Number);
-    return `${initial / 60} min${increment ? ` + ${increment}s` : ""}`;
-  };
 
   return (
     <div>
@@ -235,7 +229,10 @@ const GamesLists = ({
                         </div>
                       </div>
                       <span className="text-xs text-gray-400 shrink-0">
-                        {formatTimeControl(game.time_control)}
+                        {new Date(game.end_time * 1000).toLocaleDateString(
+                          "en-GB",
+                          { day: "2-digit", weekday: "short" }
+                        )}
                       </span>
                     </div>
 

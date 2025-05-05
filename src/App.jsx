@@ -50,6 +50,10 @@ function normalizeMoves(moves) {
   return moves.replace(/\d+\.\s?/g, "").trim();
 }
 
+import ecoAtoC from "./data/simplified_eco_A_to_C.json"; // Import the new simplified JSON file
+
+
+
 const App = () => {
   const [username, setUsername] = useState("");
   const [profile, setProfile] = useState(null);
@@ -66,18 +70,15 @@ const App = () => {
   const [loadedGames, setLoadedGames] = useState(false);
   const [filteredGames, setFilteredGames] = useState([]);
   const [opponentList, setOpponentList] = useState([]);
-  const [progress, setProgress] = useState(0);
   const [hasSelectedFilter, setHasSelectedFilter] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
   const [dropdownList, setDropdownList] = useState([]);
-  const [archives, setArchives] = useState({});
-  const [year, setYear] = useState(null);
   const yearRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     try {
+      setLoading(true);
       const res = await fetch(`https://api.chess.com/pub/player/${username}`);
       const data = await res.json();
       setProfile(data);
@@ -316,29 +317,36 @@ const App = () => {
   const generateOpponentOpeningList = async (games) => {
     const opponents = {};
     const openings = {};
-
+  
     for (const game of games) {
       const opponent =
         game.white.username.toLowerCase() === username.toLowerCase()
           ? game.black.username
           : game.white.username;
-
+  
       opponents[opponent] = (opponents[opponent] || 0) + 1;
-
+  
       try {
         const chess = new Chess();
         chess.loadPgn(game.pgn);
-        const headers = chess.header();
-        const eco = headers["ECO"] || null;
-
+  
+        // Extract the moves from the game
         const moves = chess
           .history({ verbose: true })
-          .slice(0, 20)
-          .map((m) => m.san)
+          .map((move) => move.san)
           .join(" ");
-
-        const openingName = getOpeningNameFromMoves(moves, eco);
-
+        const normalizedMoves = normalizeMoves(moves);
+  
+        // Find the matching opening name by comparing moves
+        let openingName = "Unknown Opening";
+        for (const category of Object.values(ecoAtoC)) {
+          const match = category.find((entry) => normalizeMoves(entry.moves).startsWith(normalizedMoves));
+          if (match) {
+            openingName = match.name;
+            break;
+          }
+        }
+  
         if (openingName) {
           openings[openingName] = (openings[openingName] || 0) + 1;
         }
@@ -346,7 +354,7 @@ const App = () => {
         console.error("Failed to parse PGN:", error);
       }
     }
-
+  
     const opponentItems = Object.entries(opponents)
       .map(([name, count]) => ({
         type: "opponent",
@@ -354,18 +362,16 @@ const App = () => {
         count,
       }))
       .sort((a, b) => b.count - a.count);
-
-    const mergedOpenings = mergeSimilarOpenings(openings);
-
-    const openingItems = Object.entries(mergedOpenings)
+  
+    const openingItems = Object.entries(openings)
       .map(([name, count]) => ({
         type: "opening",
         value: name,
         count,
       }))
       .sort((a, b) => b.count - a.count);
-
-    setOpponentList([...opponentItems, ...openingItems]); // <- add this
+  
+    setOpponentList([...opponentItems, ...openingItems]);
     setDropdownList([...opponentItems, ...openingItems]);
   };
 

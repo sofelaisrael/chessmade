@@ -1,3 +1,7 @@
+import { TbPlayerPlayFilled } from "react-icons/tb"; 
+// import { TbPlayerPlayFilled } from "react-icons/tb"; 
+import { TbPlayerTrackPrevFilled } from "react-icons/tb"; 
+import { TbPlayerTrackNextFilled } from "react-icons/tb"; 
 import React, { useState, useEffect, useRef } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
@@ -406,36 +410,36 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
       <div className="flex items-center justify-center space-x-4 text-white text-[20px]">
         <button
           onClick={navigateToStart}
-          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+          className="p-2 text-[24px] rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
           disabled={!currentNode?.parent}
           title="Go to start"
         >
-          <AiFillFastBackward />
+          <TbPlayerTrackPrevFilled />
         </button>
         <button
           onClick={() => goBack()}
-          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+          className="p-2 text-[24px] rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50 rotate-180"
           disabled={!currentNode?.parent}
           title="Previous move"
         >
-          <AiFillStepBackward />
+        <TbPlayerPlayFilled />
         </button>
 
         <button
           onClick={() => goForward()}
-          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+          className="p-2 text-[24px] rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
           disabled={!currentNode?.children?.[0]}
           title="Next move"
         >
-          <AiFillStepForward />
+          <TbPlayerPlayFilled />
         </button>
         <button
           onClick={navigateToEnd}
-          className="p-2 rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
+          className="p-2 text-[24px] rounded-lg hover:bg-[#1e1e1e] transition-colors disabled:opacity-50"
           disabled={!currentNode?.children?.[0]}
           title="Go to end"
         >
-          <AiFillFastForward />
+          <TbPlayerTrackNextFilled />
         </button>
       </div>
 

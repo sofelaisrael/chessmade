@@ -9,17 +9,15 @@ import { getMonthlyGames } from "../lib/chesscom";
 
 import { format } from "date-fns";
 
-const GamesList = ({
+const GamesLists = ({
   username = "",
+  games,
   onSelectGame,
-  archives,
-  setSelectedYear,
-  selectedYear,
+  loading,
+  setLoading,
 }) => {
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date());
-  const [monthGames, setMonthGames] = useState([]);
+  // console.log(username)
   const [statsFilteredGames, setStatsFilteredGames] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const gamesPerPage = 6;
   const [filters, setFilters] = useState({ result: "all", color: "all" });
@@ -32,6 +30,8 @@ const GamesList = ({
   const yearRef = useRef(null);
 
   useEffect(() => {
+
+    setStatsFilteredGames([...games].reverse());
     const handleClickOutside = (e) => {
       if (resultRef.current && !resultRef.current.contains(e.target)) {
         setShowResultDropdown(false);
@@ -45,40 +45,11 @@ const GamesList = ({
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [games]);
 
   useEffect(() => {
-    if (archives[selectedYear]?.length > 0) {
-      const sortedMonths = [...archives[selectedYear]].sort((a, b) => b - a);
-      const latestMonth = parseInt(sortedMonths[0]);
-      const defaultDate = new Date(parseInt(selectedYear), latestMonth - 1);
-      setSelectedMonth(defaultDate);
-    }
-  }, [selectedYear]);
-
-  useEffect(() => {
-    const loadGames = async () => {
-      if (!selectedMonth || !selectedYear || !username) return;
-
-      setLoading(true);
-      const games = await getMonthlyGames(
-        username,
-        parseInt(selectedYear),
-        selectedMonth.getMonth() + 1
-      );
-      const standardGames = games.filter((game) => game.rules === "chess");
-
-      setMonthGames(standardGames.reverse());
-      setLoading(false);
-      setCurrentPage(1);
-    };
-
-    loadGames();
-  }, [selectedMonth, selectedYear]);
-
-  useEffect(() => {
-    let filtered = monthGames;
-
+    let filtered = games;
+    setLoading(false);
     if (filters.result !== "all") {
       filtered = filtered.filter((game) => {
         const playerColor =
@@ -124,7 +95,7 @@ const GamesList = ({
 
     setStatsFilteredGames(filtered);
     setCurrentPage(1);
-  }, [monthGames, filters]);
+  }, [games, filters]);
 
   const handleFilterChange = (filterName, value) => {
     setFilters((prev) => ({ ...prev, [filterName]: value }));
@@ -154,68 +125,6 @@ const GamesList = ({
 
   return (
     <div>
-      <div className="flex justify-between max-md:flex-col">
-        <div className="flex gap-3 w-[70%] flex-wrap max-md:w-full max-md:gap-x-1 max-md:justify-evenly">
-          {Array.from({ length: 12 }).map((_, i) => {
-            const monthName = new Date(0, i).toLocaleString("default", {
-              month: "short",
-            });
-            const monthStr = String(i + 1).padStart(2, "0");
-            const isAvailable = archives[selectedYear]?.includes(monthStr);
-
-            return (
-              <button
-                key={i}
-                className={`rounded text-sm w-[50px] h-[30px] ${
-                  isAvailable
-                    ? "bg-[#1e1e1e] text-white hover:bg-[#fff] hover:text-[#1e1e1e]"
-                    : "bg-gray-200 opacity-25 text-gray-400"
-                } ${
-                  selectedMonth?.getMonth() === i
-                    ? "bg-[#373D49] border border-[#777]"
-                    : ""
-                }`}
-                disabled={!isAvailable}
-                onClick={() =>
-                  setSelectedMonth(new Date(parseInt(selectedYear), i))
-                }
-              >
-                {monthName}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Year Dropdown */}
-        <div className="relative max-md:pt-2 max-md:ml-auto" ref={yearRef}>
-          <button
-            onClick={() => setShowYearDropdown(!showYearDropdown)}
-            className="p-2 border rounded text-white bg-[#1e1e1e] w-24 flex items-center justify-between border-[#777]"
-          >
-            {selectedYear}
-            <RxCaretDown />
-          </button>
-          {showYearDropdown && (
-            <ul className="absolute z-10 mt-1 bg-[#1e1e1e] border rounded w-24 text-white border-[#777]">
-              {Object.keys(archives)
-                .sort((a, b) => b - a)
-                .map((y) => (
-                  <li
-                    key={y}
-                    className="px-4 py-2 hover:bg-[#333] cursor-pointer"
-                    onClick={() => {
-                      setSelectedYear(y);
-                      setShowYearDropdown(false);
-                    }}
-                  >
-                    {y}
-                  </li>
-                ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
       <div className="flex space-x-4 items-center my-4 max-md:gap-3 relative max-md:flex-col max-md:items-start">
         {/* Result Filter */}
         <div className="res flex items-center gap-5">
@@ -280,88 +189,93 @@ const GamesList = ({
 
       <div>
         <ul className="flex flex-wrap gap-4">
-          {loading
-            ? Array.from({ length: 6 }).map((_, idx) => (
-                <SkeletonTheme
-                  baseColor="#2a2a2a"
-                  highlightColor="#444"
-                  key={idx}
+          {loading ? (
+            Array.from({ length: 6 }).map((_, idx) => (
+              <SkeletonTheme
+                baseColor="#2a2a2a"
+                highlightColor="#444"
+                key={idx}
+              >
+                <li className="skeleton overflow-hidden h-full rounded-lg w-[250px] max-md:w-full">
+                  <Skeleton height={110} />
+                </li>
+              </SkeletonTheme>
+            ))
+          ) : currentGames.length === 0 ? (
+            <div className="text-white text-sm italic opacity-70">
+              No games found with this filter.
+            </div>
+          ) : (
+            currentGames.map((game) => {
+              const playerColor =
+                game.white.username.toLowerCase() === username.toLowerCase()
+                  ? "white"
+                  : "black";
+              return (
+                <li
+                  key={game.url}
+                  onClick={() => onSelectGame(game)}
+                  className="border rounded-lg p-4 text-white border-[#494949] cursor-pointer bg-[#1e1e1e] hover:bg-[#1a1a1a] w-[250px] max-md:w-full"
                 >
-                  <li className="border rounded-lg w-[250px] max-md:w-full">
-                    <Skeleton containerClassName="skeleton" height={110} />
-                  </li>
-                </SkeletonTheme>
-              ))
-            : currentGames.map((game) => {
-                const playerColor =
-                  game.white.username.toLowerCase() === username.toLowerCase()
-                    ? "white"
-                    : "black";
-
-                return (
-                  <li
-                    key={game.url}
-                    onClick={() => onSelectGame(game)}
-                    className="border rounded-lg p-4 text-white border-[#494949] cursor-pointer bg-[#1e1e1e] hover:bg-[#1a1a1a] w-[250px] max-md:w-full"
-                  >
-                    <div className="flex flex-col gap-2">
-                      <div className="flex justify-between">
-                        <div className="text-sm font-medium flex items-center gap-1 truncate w-[80%]">
-                          vs.{" "}
-                          <div
-                            className={`size-3 shrink-0 rounded-full border bg-${
-                              playerColor === "black"
-                                ? "white border-black"
-                                : "border-white black"
-                            }`}
-                          ></div>
-                          <div className="truncate">
-                            {playerColor === "white"
-                              ? game.black.username
-                              : game.white.username}
-                          </div>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex justify-between">
+                      <div className="text-sm font-medium flex items-center gap-1 truncate w-[80%]">
+                        vs.{" "}
+                        <div
+                          className={`size-3 shrink-0 rounded-full border ${
+                            playerColor === "black"
+                              ? "bg-white border-black"
+                              : "border-white bg-black"
+                          }`}
+                        ></div>
+                        <div className="truncate">
+                          {playerColor === "white"
+                            ? game.black.username
+                            : game.white.username}
                         </div>
-                        <span className="text-xs text-gray-400 shrink-0">
-                          {formatTimeControl(game.time_control)}
-                        </span>
                       </div>
+                      <span className="text-xs text-gray-400 shrink-0">
+                        {formatTimeControl(game.time_control)}
+                      </span>
+                    </div>
 
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-400">
-                          {game.time_class.toUpperCase()}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {game.rated ? "Rated" : "Unrated"}
-                        </span>
-                      </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">
+                        {game.time_class.toUpperCase()}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {game.rated ? "Rated" : "Unrated"}
+                      </span>
+                    </div>
 
-                      <div className="flex justify-between mt-2">
-                        {playerColor === "white" ? (
-                          game.white.result === "win" ? (
-                            <BiPlus className="text-green-500" />
-                          ) : game.black.result === "win" ? (
-                            <BiMinus className="text-red-500" />
-                          ) : (
-                            <TiEquals className="text-gray-400" />
-                          )
-                        ) : game.black.result === "win" ? (
+                    <div className="flex justify-between mt-2">
+                      {playerColor === "white" ? (
+                        game.white.result === "win" ? (
                           <BiPlus className="text-green-500" />
-                        ) : game.white.result === "win" ? (
+                        ) : game.black.result === "win" ? (
                           <BiMinus className="text-red-500" />
                         ) : (
                           <TiEquals className="text-gray-400" />
-                        )}
+                        )
+                      ) : game.black.result === "win" ? (
+                        <BiPlus className="text-green-500" />
+                      ) : game.white.result === "win" ? (
+                        <BiMinus className="text-red-500" />
+                      ) : (
+                        <TiEquals className="text-gray-400" />
+                      )}
 
-                        <span className="text-gray-400 text-xs">
-                          {playerColor === "black"
-                            ? game.black.rating
-                            : game.white.rating}
-                        </span>
-                      </div>
+                      <span className="text-gray-400 text-xs">
+                        {playerColor === "black"
+                          ? game.black.rating
+                          : game.white.rating}
+                      </span>
                     </div>
-                  </li>
-                );
-              })}
+                  </div>
+                </li>
+              );
+            })
+          )}
         </ul>
       </div>
 
@@ -394,4 +308,4 @@ const GamesList = ({
   );
 };
 
-export default GamesList;
+export default GamesLists;

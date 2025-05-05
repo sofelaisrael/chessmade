@@ -238,19 +238,19 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
       case "timeout":
         return <FaClock className="text-white w-3 h-3" title="Timeout" />;
       case "stalemate":
-        return <div className="text-white w-3 h-3 ">1/2</div>;
+        return <div className="text-white w-3 h-3  flex justify-center items-center font-bold text-[10px]">1/2</div>;
       case "timevsinsufficient":
-        return <div className="text-white w-3 h-3 ">1/2</div>;
+        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
       case "timeoutvsinsufficient":
-        return <div className="text-white w-3 h-3 ">1/2</div>;
+        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
       case "repetition":
-        return <div className="text-white w-3 h-3 ">1/2</div>;
+        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
       case "agreed":
-        return <div className="text-white w-3 h-3 ">1/2</div>;
+        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
       case "50move":
-        return <div className="text-white w-3 h-3 ">1/2</div>;
+        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
       case "insufficient":
-        return <div className="text-white w-3 h-3 ">1/2</div>;
+        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
       case "resigned":
         return <FaFlag className="text-white w-3 h-3" title="Resigned" />;
       default:

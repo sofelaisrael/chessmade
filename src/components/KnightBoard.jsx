@@ -36,26 +36,45 @@ const KnightBoard3x3 = () => {
 
       setPrevPosition(position);
       setPosition(next);
-    }, 500);
+    }, 800);
 
     return () => clearInterval(interval);
   }, [position, prevPosition]);
 
+  const cellSize = 64;
+  const [x, y] = position;
+
   return (
-    <div className="grid grid-cols-3 gap-1 w-48 h-48">
+    <div
+      className="relative"
+      style={{ width: cellSize * 3, height: cellSize * 3 }}
+    >
+      {/* 3x3 board grid */}
       {Array.from({ length: 3 }).map((_, row) =>
-        Array.from({ length: 3 }).map((_, col) => {
-          const isKnight = position[0] === row && position[1] === col;
-          return (
-            <div
-              key={`${row}-${col}`}
-              className={`w-full h-full transition-all duration-300 ${
-                (row + col) % 2 === 0 ? "bg-gray-800" : "bg-gray-600"
-              } ${isKnight ? "scale-105 knight" : ""}`}
-            ></div>
-          );
-        })
+        Array.from({ length: 3 }).map((_, col) => (
+          <div
+            key={`${row}-${col}`}
+            style={{
+              position: "absolute",
+              width: cellSize,
+              height: cellSize,
+              left: col * cellSize,
+              top: row * cellSize,
+              backgroundColor: (row + col) % 2 === 0 ? "#1f2937" : "#4b5563",
+            }}
+          />
+        ))
       )}
+
+      <div
+        className="absolute bg-white rounded shadow-md transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
+        style={{
+          width: cellSize * 0.8,
+          height: cellSize * 0.8,
+          left: y * cellSize + cellSize * 0.1,
+          top: x * cellSize + cellSize * 0.1,
+        }}
+      />
     </div>
   );
 };

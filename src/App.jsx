@@ -50,10 +50,6 @@ function normalizeMoves(moves) {
   return moves.replace(/\d+\.\s?/g, "").trim();
 }
 
-import ecoAtoC from "./data/simplified_eco_A_to_C.json"; // Import the new simplified JSON file
-
-
-
 const App = () => {
   const [username, setUsername] = useState("");
   const [profile, setProfile] = useState(null);
@@ -131,6 +127,61 @@ const App = () => {
     }
   };
 
+  const moves =
+    "1. e4 e5 2. Nc3 Nf6";
+
+  function findOpeningWithShortestName(movesStr) {
+    const normalizedMoves = normalizeMoves(movesStr);
+    const gameMoves = normalizedMoves.split(/\s+/);
+
+    let bestMatch = null;
+    let maxMatchingMoves = 0;
+
+    for (const [openingName, variations] of openingMap.entries()) {
+      for (const variation of variations) {
+        const variationMoves = variation.split(/\s+/);
+        let matchCount = 1;
+
+        for (
+          let i = 0;
+          i < Math.min(gameMoves.length, variationMoves.length);
+          i++
+        ) {
+          if (gameMoves[i] === variationMoves[i]) {
+            matchCount++;
+          } else {
+            break;
+          }
+        }
+        if (matchCount > maxMatchingMoves) {
+          console.log(maxMatchingMoves, matchCount)
+          maxMatchingMoves = matchCount;
+          console.log(maxMatchingMoves, matchCount)
+          bestMatch = openingName;
+        }
+      }
+    }
+
+    // Find all openings with similar names
+    const similarOpenings = Array.from(openingMap.keys()).filter((name) =>
+      name.toLowerCase().includes(bestMatch?.toLowerCase())
+    );
+
+    // Find the shortest name among similar openings
+    const shortestName = similarOpenings.reduce((shortest, name) =>
+      name.length < shortest.length ? name : shortest
+    );
+
+    // Log the results
+    console.log(`Opening with the shortest name: ${shortestName}`);
+    console.log(bestMatch);
+
+    return shortestName;
+  }
+
+  // Example usage
+  findOpeningWithShortestName(moves);
+
   const handleMonthClick = async (monthIndex) => {
     setLoadedGames(true);
     const monthNum = String(monthIndex + 1).padStart(2, "0");
@@ -183,31 +234,12 @@ const App = () => {
     const userIsWhite =
       game.white.username.toLowerCase() === username.toLowerCase();
     const userResult = userIsWhite ? game.white.result : game.black.result;
-    const opponentResult = userIsWhite ? game.black.result : game.white.result;
-
-    const winResults = [
-      "win",
-      "checkmated",
-      "resigned",
-      "timeout",
-      "abandoned",
-      "agreed",
-      "repetition",
-      "stalemate",
-      "timevsinsufficient",
-      "insufficient",
-    ];
     const lossResults = ["checkmated", "resigned", "timeout", "abandoned"];
 
-    if (userResult === "win") return "win";
-
-    // Handle losses (you were checkmated, resigned, etc.)
-    if (lossResults.includes(userResult)) return "loss";
-
-    // Handle draws: if it's not a win or loss, treat as draw
+    if (userResult === "win") return "won";
+    if (lossResults.includes(userResult)) return "lost";
     return "draw";
   }
-
   const extractRootName = (name) => {
     const commonSuffixes = [
       "Opening",
@@ -233,53 +265,19 @@ const App = () => {
     return name;
   };
 
-  function mergeSimilarOpenings(openingsObj) {
-    const grouped = {};
-    const keywords = ["game", "opening", "defense", "defence"];
-
-    for (const [name, count] of Object.entries(openingsObj)) {
-      const base = name.toLowerCase().split(/\s+/)[0]; // use first word as base
-
-      if (!grouped[base]) grouped[base] = [];
-
-      grouped[base].push({ name, count });
-    }
-
-    const merged = {};
-
-    for (const group of Object.values(grouped)) {
-      // Sort group by presence of keyword and then by count
-      group.sort((a, b) => {
-        const aHasKeyword = keywords.some((k) =>
-          a.name.toLowerCase().includes(k)
-        );
-        const bHasKeyword = keywords.some((k) =>
-          b.name.toLowerCase().includes(k)
-        );
-        if (aHasKeyword !== bHasKeyword) return bHasKeyword - aHasKeyword;
-        return b.count - a.count; // fallback: highest count wins
-      });
-
-      const mergedName = group[0].name;
-      const total = group.reduce((sum, item) => sum + item.count, 0);
-
-      merged[mergedName] = total;
-    }
-
-    return merged;
-  }
-
   function getOpeningNameFromMoves(movesStr, eco = null) {
     const normalizedMoves = normalizeMoves(movesStr);
     const gameMoves = normalizedMoves.split(/\s+/);
     let bestMatch = null;
     let bestLength = 0;
+    const matchingOpenings = [];
 
+    // Iterate through the openingMap to find all matching openings
     for (const [openingName, variations] of openingMap.entries()) {
       for (const variation of variations) {
         const variationMoves = variation.split(/\s+/);
-
         let matches = true;
+
         for (let i = 0; i < variationMoves.length; i++) {
           if (variationMoves[i] !== gameMoves[i]) {
             matches = false;
@@ -287,66 +285,71 @@ const App = () => {
           }
         }
 
-        if (matches && variationMoves.length > bestLength) {
-          bestMatch = openingName;
-          bestLength = variationMoves.length;
+        if (matches) {
+          matchingOpenings.push(openingName);
+
+          // Track the best match based on the number of moves
+          if (variationMoves.length > bestLength) {
+            bestMatch = openingName;
+            bestLength = variationMoves.length;
+          }
         }
       }
     }
 
-    let finalName = bestMatch;
+    // If multiple matches are found, select the shortest name
+    if (matchingOpenings.length > 0) {
+      bestMatch = matchingOpenings.reduce((shortest, name) =>
+        name.length < shortest.length ? name : shortest
+      );
+    }
 
-    // fallback to ECO if nothing matched
-    if (!finalName && eco) {
+    // Fallback to ECO if no matches are found
+    if (!bestMatch && eco) {
       const opening = Object.values(combinedOpenings).find(
         (o) => o.eco === eco
       );
       if (opening) {
-        finalName = opening.name;
+        bestMatch = opening.name;
       }
     }
 
     // Normalize to root name if available
-    if (finalName) {
-      return extractRootName(finalName);
+    if (bestMatch) {
+      return extractRootName(bestMatch);
     }
 
-    return null;
+    return "Unknown Opening";
   }
 
   const generateOpponentOpeningList = async (games) => {
     const opponents = {};
     const openings = {};
-  
+
     for (const game of games) {
       const opponent =
         game.white.username.toLowerCase() === username.toLowerCase()
           ? game.black.username
           : game.white.username;
-  
+
       opponents[opponent] = (opponents[opponent] || 0) + 1;
-  
+
       try {
         const chess = new Chess();
         chess.loadPgn(game.pgn);
-  
+
         // Extract the moves from the game
         const moves = chess
           .history({ verbose: true })
           .map((move) => move.san)
           .join(" ");
         const normalizedMoves = normalizeMoves(moves);
-  
+
         // Find the matching opening name by comparing moves
-        let openingName = "Unknown Opening";
-        for (const category of Object.values(ecoAtoC)) {
-          const match = category.find((entry) => normalizeMoves(entry.moves).startsWith(normalizedMoves));
-          if (match) {
-            openingName = match.name;
-            break;
-          }
-        }
-  
+        const headers = chess.header();
+        const eco = headers["ECO"] || null;
+        const openingName = getOpeningNameFromMoves(normalizedMoves, eco);
+
         if (openingName) {
           openings[openingName] = (openings[openingName] || 0) + 1;
         }
@@ -354,7 +357,7 @@ const App = () => {
         console.error("Failed to parse PGN:", error);
       }
     }
-  
+
     const opponentItems = Object.entries(opponents)
       .map(([name, count]) => ({
         type: "opponent",
@@ -362,7 +365,7 @@ const App = () => {
         count,
       }))
       .sort((a, b) => b.count - a.count);
-  
+
     const openingItems = Object.entries(openings)
       .map(([name, count]) => ({
         type: "opening",
@@ -370,7 +373,7 @@ const App = () => {
         count,
       }))
       .sort((a, b) => b.count - a.count);
-  
+
     setOpponentList([...opponentItems, ...openingItems]);
     setDropdownList([...opponentItems, ...openingItems]);
   };
@@ -482,9 +485,10 @@ const App = () => {
   }, [displayedGames]);
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D]">
+    <div className="bg-[#0D0D0D] poppins">
       {!profile ? (
-        <div className="flex flex-col items-center px-10 max-md:px-5 space-y-6 h-[100svh] justify-center">
+        <div className="flex flex-col items-center px-10 max-md:px-5 space-y-6 h-[100svh] justify-center quicksand">
+          <KnightBoard />
           <h2 className="text-2xl font-semibold text-white text-center">
             Enter your Chess.com username
           </h2>
@@ -514,7 +518,7 @@ const App = () => {
             </div>
           ) : (
             <>
-              <header className="shadow-md flex justify-between px-10 py-5 items-center max-md:px-5 gap-5 relative">
+              <header className="shadow-md flex justify-between px-10 py-5 items-center max-md:px-5 gap-5 relative poppins">
                 <div className="flex gap-10 justify-between items-center h-full">
                   <div className="text-3xl font-bold text-[#fff] max-lg:text-xl max-md:text-lg">
                     ChessMore
@@ -533,12 +537,15 @@ const App = () => {
                 </div>
               </header>
 
-              <main className="max-w-7xl mx-auto px-4 py-6">
+              <main className="max-w-7xl mx-auto px- py-6 px-5">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-1">
                     <div className="py-4 w-full">
-                      <div className="flex flex-col space-y-2 relative">
-                        <form onSubmit={handleSearch} className="relative">
+                      <div className="flex flex-col space-y-2 relative quicksand">
+                        <form
+                          onSubmit={handleSearch}
+                          className="relative lg:w-full max-lg:w-[446px] sm:w-[446px] mx-auto"
+                        >
                           <input
                             type="text"
                             placeholder="Search opponents or openings..."
@@ -548,7 +555,7 @@ const App = () => {
                             onBlur={() =>
                               setTimeout(() => setShowDropdown(false), 150)
                             }
-                            className="w-full px-4 py-2 border border-transparent rounded-lg outline-none bg-[#1A1A1A] text-white focus:border-[#5ED3F3]"
+                            className="w-full px-4 py-2 border border-transparent rounded-lg outline-none bg-[#1A1A1A] text-white focus:border-[#5ED3F3] lg:w-full max-lg:w-[446px] sm:w-[446px]"
                           />
 
                           <button
@@ -594,7 +601,7 @@ const App = () => {
 
                     {hasSelectedFilter && (
                       <div className="bg-[#1e1e1e] text-white shadow-md rounded-lg p-4 mt-4">
-                        <h2 className="text-xl font-semibold mb-4">
+                        <h2 className="text-xl font-semibold mb-4 syne">
                           Games with Selected Opening/Opponent
                         </h2>
                         {isFiltering ? (
@@ -644,7 +651,7 @@ const App = () => {
                     <div className="flex justify-between max-md:flex-col">
                       {/* Month Selector */}
                       {selectedYear && (
-                        <div className="flex gap-3 w-[70%] flex-wrap max-md:w-full max-md:gap-x-1 max-md:justify-evenly">
+                        <div className="flex gap-3 w-[70%] flex-wrap max-md:w-full syne px-2">
                           {monthNames.map((name, i) => {
                             const isAvailable = isMonthAvailable(i);
                             const monthNum = String(i + 1).padStart(2, "0");
@@ -655,7 +662,7 @@ const App = () => {
                                 onClick={() =>
                                   isAvailable && handleMonthClick(i)
                                 }
-                                className={`px-3 py-1 rounded transition-colors ${
+                                className={`px-3 w-[50px] py-1 rounded transition-colors ${
                                   isAvailable
                                     ? isActive
                                       ? "bg-[#5ED3F3] text-black"
@@ -671,7 +678,7 @@ const App = () => {
                         </div>
                       )}
                       <div
-                        className="relative max-md:pt-2 max-md:ml-auto"
+                        className="relative max-md:pt-2 max-md:ml-auto max-md:p-5"
                         ref={yearRef}
                       >
                         <button

@@ -1,22 +1,20 @@
-import { TbPlayerPlayFilled } from "react-icons/tb"; 
-// import { TbPlayerPlayFilled } from "react-icons/tb"; 
-import { TbPlayerTrackPrevFilled } from "react-icons/tb"; 
-import { TbPlayerTrackNextFilled } from "react-icons/tb"; 
 import React, { useState, useEffect, useRef } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
 import { parse } from "pgn-parser";
 import {
+  TbPlayerPlayFilled,
+  TbPlayerTrackPrevFilled,
+  TbPlayerTrackNextFilled,
+} from "react-icons/tb";
+import {
   AiOutlineClose,
-  AiFillStepForward,
-  AiFillStepBackward,
-  AiFillFastBackward,
-  AiFillFastForward,
 } from "react-icons/ai";
 import { RxExit } from "react-icons/rx";
 import { FaChessKing, FaClock, FaCrown, FaFlag } from "react-icons/fa6";
 
 const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
+  console.log(pgn)
   const [chess] = useState(new Chess());
   const [moveTreeRoot, setMoveTreeRoot] = useState(null);
   const [currentNode, setCurrentNode] = useState(null);
@@ -242,19 +240,47 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
       case "timeout":
         return <FaClock className="text-white w-3 h-3" title="Timeout" />;
       case "stalemate":
-        return <div className="text-white w-3 h-3  flex justify-center items-center font-bold text-[10px]">1/2</div>;
+        return (
+          <div className="text-white w-3 h-3  flex justify-center items-center font-bold text-[10px]">
+            1/2
+          </div>
+        );
       case "timevsinsufficient":
-        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
+        return (
+          <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">
+            1/2
+          </div>
+        );
       case "timeoutvsinsufficient":
-        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
+        return (
+          <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">
+            1/2
+          </div>
+        );
       case "repetition":
-        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
+        return (
+          <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">
+            1/2
+          </div>
+        );
       case "agreed":
-        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
+        return (
+          <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">
+            1/2
+          </div>
+        );
       case "50move":
-        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
+        return (
+          <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">
+            1/2
+          </div>
+        );
       case "insufficient":
-        return <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">1/2</div>;
+        return (
+          <div className="text-white w-3 h-3   flex justify-center items-center font-bold text-[10px]">
+            1/2
+          </div>
+        );
       case "resigned":
         return <FaFlag className="text-white w-3 h-3" title="Resigned" />;
       default:
@@ -307,8 +333,9 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
   }, [currentNode]);
 
   return (
-    <div className="space-y-4">
-      <div className="text p">
+    <div className="space-y-4 max-md:px-2">
+      
+      <div className="text quicksand mx-auto max-lg:w-[446px] sm:w-[446px]">
         <div className="font-semibold flex items-center gap-2">
           {opponentInfo.name && (
             <div className="sm text-white">
@@ -344,7 +371,7 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
         </div>
       </div>
       <div
-        className="aspect-square max-w-md mx-auto relative"
+        className="aspect-square max-w-md mx-auto relative "
         ref={chessboardRef}
       >
         <Chessboard
@@ -371,7 +398,7 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
           </div>
         )}
       </div>
-      <div className="text- p">
+      <div className="text- quicksand max-lg:w-[446px] sm:w-[446px] mx-auto">
         <div className="font-semibold flex items-center gap-2 text-white">
           {userInfo.name && (
             <div className="sm">
@@ -422,7 +449,7 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
           disabled={!currentNode?.parent}
           title="Previous move"
         >
-        <TbPlayerPlayFilled />
+          <TbPlayerPlayFilled />
         </button>
 
         <button

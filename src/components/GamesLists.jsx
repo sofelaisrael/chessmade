@@ -1,13 +1,10 @@
+import React, { useState, useEffect, useRef } from "react";
 import { RxCaretDown } from "react-icons/rx";
 import { MdNavigateBefore, MdNavigateNext } from "react-icons/md";
 import { TiEquals } from "react-icons/ti";
 import { BiPlus, BiMinus } from "react-icons/bi";
-import React, { useState, useEffect, useRef } from "react";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { getMonthlyGames } from "../lib/chesscom";
-
-import { format } from "date-fns";
 
 const GamesLists = ({
   username = "",
@@ -16,18 +13,15 @@ const GamesLists = ({
   loading,
   setLoading,
 }) => {
-  // console.log(username)
+  
   const [statsFilteredGames, setStatsFilteredGames] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const gamesPerPage = 6;
   const [filters, setFilters] = useState({ result: "all", color: "all" });
   const [showResultDropdown, setShowResultDropdown] = useState(false);
   const [showColorDropdown, setShowColorDropdown] = useState(false);
-  const [showYearDropdown, setShowYearDropdown] = useState(false);
-
   const resultRef = useRef(null);
   const colorRef = useRef(null);
-  const yearRef = useRef(null);
 
   useEffect(() => {
     setStatsFilteredGames(games.reverse());
@@ -37,9 +31,6 @@ const GamesLists = ({
       }
       if (colorRef.current && !colorRef.current.contains(e.target)) {
         setShowColorDropdown(false);
-      }
-      if (yearRef.current && !yearRef.current.contains(e.target)) {
-        setShowYearDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -119,10 +110,10 @@ const GamesLists = ({
 
   return (
     <div>
-      <div className="flex space-x-4 items-center my-4 max-md:gap-3 relative max-md:flex-col max-md:items-start">
+      <div className="flex space-x-4 items-center my-4 max-md:gap-3 relative max-md:flex-col max-md:items-start max-md:px-2">
         {/* Result Filter */}
         <div className="res flex items-center gap-5">
-          <span className="text-white font-bold">Results:</span>
+          <span className="text-white font-bold syne w-[80px]">Results:</span>
           <div className="relative" ref={resultRef}>
             <button
               onClick={() => setShowResultDropdown(!showResultDropdown)}
@@ -152,7 +143,7 @@ const GamesLists = ({
 
         {/* Color Filter */}
         <div className="col flex items-center gap-5">
-          <span className="text-white font-bold">Colors:</span>
+          <span className="text-white font-bold syne w-[80px]">Colors:</span>
           <div className="relative" ref={colorRef}>
             <button
               onClick={() => setShowColorDropdown(!showColorDropdown)}
@@ -181,7 +172,7 @@ const GamesLists = ({
         </div>
       </div>
 
-      <div>
+      <div className="h-full">
         <ul className="flex flex-wrap gap-4">
           {loading ? (
             Array.from({ length: 6 }).map((_, idx) => (
@@ -196,7 +187,7 @@ const GamesLists = ({
               </SkeletonTheme>
             ))
           ) : currentGames.length === 0 ? (
-            <div className="text-white text-sm italic opacity-70">
+            <div className="text-white text-sm italic opacity-70 h-[300px]">
               No games found with this filter.
             </div>
           ) : (
@@ -209,7 +200,7 @@ const GamesLists = ({
                 <li
                   key={game.url}
                   onClick={() => onSelectGame(game)}
-                  className="border rounded-lg p-4 text-white border-[#494949] cursor-pointer bg-[#1e1e1e] hover:bg-[#1a1a1a] w-[250px] max-md:w-full"
+                  className="border rounded-lg p-4 text-white border-[#494949] cursor-pointer bg-[#1e1e1e] hover:bg-[#1a1a1a] w-[250px] max-md:w-full flex- max-xl:w-[200px] max-lg:w-[250px] "
                 >
                   <div className="flex flex-col gap-2">
                     <div className="flex justify-between">
@@ -277,17 +268,17 @@ const GamesLists = ({
       </div>
 
       {statsFilteredGames.length > gamesPerPage && (
-        <div className="flex mt-4 text-white items-center gap-5">
+        <div className="flex mt-4 text-white items-center gap-2 quicksand">
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
-            className="p-2 border border-[#777] rounded disabled:opacity-50"
+            className="p-2 border border-[#777] rounded-full disabled:opacity-50"
           >
             <MdNavigateBefore />
           </button>
-          <span>
-            {currentPage} /{" "}
-            {Math.ceil(statsFilteredGames.length / gamesPerPage)}
+          <span className="rounded-[100px] px-3 h-[40px] flex items-center justify-center">
+            {currentPage} / {Math.ceil(statsFilteredGames.length / gamesPerPage)}
+            
           </span>
           <button
             onClick={handleNextPage}
@@ -295,7 +286,7 @@ const GamesLists = ({
               currentPage ===
               Math.ceil(statsFilteredGames.length / gamesPerPage)
             }
-            className="p-2 border border-[#777] rounded disabled:opacity-50"
+            className="p-2 border border-[#777] rounded-full disabled:opacity-50"
           >
             <MdNavigateNext />
           </button>

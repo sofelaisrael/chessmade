@@ -9,14 +9,11 @@ import ChessBoard from "./components/ChessBoard";
 import GamesLists from "./components/GamesLists";
 import "./App.css";
 import defaultimg from "./assets/default.png";
-import { getMonthlyGames } from "./lib/chesscom";
-import ecoA from "./data/ecoA.json";
-import ecoB from "./data/ecoB.json";
-import ecoC from "./data/ecoC.json";
-import ecoD from "./data/ecoD.json";
-import ecoE from "./data/ecoE.json";
+import { getMonthlyGames, getUserArchivesAndGames } from "./lib/chesscom";
 import { Chess } from "chess.js";
 import KnightBoard from "./components/KnightBoard";
+import Login from "./pages/Login";
+import openingsData from "./data/openings.json";
 
 const monthNames = [
   "Jan",
@@ -33,24 +30,19 @@ const monthNames = [
   "Dec",
 ];
 
-const combinedOpenings = { ...ecoA, ...ecoB, ...ecoC, ...ecoD, ...ecoE };
-const openingMap = new Map();
-
-Object.values(combinedOpenings).forEach((obj) => {
-  if (obj?.eco && obj?.name) {
-    const baseName = obj.name.split(/[:|,]/)[0].trim();
-    if (!openingMap.has(baseName)) {
-      openingMap.set(baseName, []);
-    }
-    openingMap.get(baseName).push(normalizeMoves(obj.moves));
-  }
-});
-
 function normalizeMoves(moves) {
   return moves.replace(/\d+\.\s?/g, "").trim();
 }
 
+function normalizeString(str) {
+  return str
+    .replace(/[-]/g, " ") // replace hyphens and apostrophes with space
+    .replace(/\s+/g, " ") // collapse multiple spaces
+    .trim();
+}
+
 const App = () => {
+  const [error, setError] = useState("");
   const [username, setUsername] = useState("");
   const [profile, setProfile] = useState(null);
   const [archiveMap, setArchiveMap] = useState({});
@@ -71,117 +63,45 @@ const App = () => {
   const [dropdownList, setDropdownList] = useState([]);
   const yearRef = useRef(null);
 
+  // Login Logic
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     try {
       setLoading(true);
-      const res = await fetch(`https://api.chess.com/pub/player/${username}`);
-      const data = await res.json();
-      setProfile(data);
+      const {
+        profile,
+        archiveMap,
+        sortedYears,
+        mostRecentYear,
+        mostRecentMonth,
+        games,
+        key,
+      } = await getUserArchivesAndGames(username);
 
-      const archiveRes = await fetch(
-        `https://api.chess.com/pub/player/${username}/games/archives`
-      );
-      const archiveData = await archiveRes.json();
-      const archiveUrls = archiveData.archives;
-
-      const map = {};
-      archiveUrls.forEach((url) => {
-        const match = url.match(/\/(\d{4})\/(\d{1,2})$/);
-        if (match) {
-          const year = match[1];
-          const month = match[2].padStart(2, "0");
-          if (!map[year]) map[year] = [];
-          map[year].push(month);
-        }
-      });
-
-      Object.keys(map).forEach((year) => {
-        map[year] = map[year].sort((a, b) => Number(a) - Number(b));
-      });
-
-      const sortedYears = Object.keys(map).sort((a, b) => b - a);
-      const mostRecentYear = sortedYears[0];
-      const mostRecentMonth =
-        map[mostRecentYear][map[mostRecentYear].length - 1];
-
-      setArchiveMap(map);
+      setProfile(profile);
+      setArchiveMap(archiveMap);
       setSelectedYear(mostRecentYear);
       setSelectedMonth(mostRecentMonth);
-
-      const key = `${mostRecentYear}-${mostRecentMonth}`;
-      const games = await getMonthlyGames(
-        username,
-        parseInt(mostRecentYear),
-        parseInt(mostRecentMonth)
-      );
       setMonthlyGames({ [key]: games });
       setDisplayedGames(games);
     } catch (err) {
+      if (err.message === "Failed to fetch profile") {
+        setError("Username not found. Please check and try again.");
+      } else if (err.message === "Failed to fetch") {
+        setError("Network error. Please check your connection.");
+      } else {
+        setError("An unexpected error occurred.");
+      }
       console.error("Error fetching profile/games:", err);
     } finally {
       setTimeout(() => {
         setLoading(false);
       }, 3000);
-      // setLoading(false);
     }
   };
 
-  const moves =
-    "1. e4 e5 2. Nc3 Nf6";
-
-  function findOpeningWithShortestName(movesStr) {
-    const normalizedMoves = normalizeMoves(movesStr);
-    const gameMoves = normalizedMoves.split(/\s+/);
-
-    let bestMatch = null;
-    let maxMatchingMoves = 0;
-
-    for (const [openingName, variations] of openingMap.entries()) {
-      for (const variation of variations) {
-        const variationMoves = variation.split(/\s+/);
-        let matchCount = 1;
-
-        for (
-          let i = 0;
-          i < Math.min(gameMoves.length, variationMoves.length);
-          i++
-        ) {
-          if (gameMoves[i] === variationMoves[i]) {
-            matchCount++;
-          } else {
-            break;
-          }
-        }
-        if (matchCount > maxMatchingMoves) {
-          console.log(maxMatchingMoves, matchCount)
-          maxMatchingMoves = matchCount;
-          console.log(maxMatchingMoves, matchCount)
-          bestMatch = openingName;
-        }
-      }
-    }
-
-    // Find all openings with similar names
-    const similarOpenings = Array.from(openingMap.keys()).filter((name) =>
-      name.toLowerCase().includes(bestMatch?.toLowerCase())
-    );
-
-    // Find the shortest name among similar openings
-    const shortestName = similarOpenings.reduce((shortest, name) =>
-      name.length < shortest.length ? name : shortest
-    );
-
-    // Log the results
-    console.log(`Opening with the shortest name: ${shortestName}`);
-    console.log(bestMatch);
-
-    return shortestName;
-  }
-
-  // Example usage
-  findOpeningWithShortestName(moves);
-
+  // Gamelist Logic
   const handleMonthClick = async (monthIndex) => {
     setLoadedGames(true);
     const monthNum = String(monthIndex + 1).padStart(2, "0");
@@ -230,6 +150,7 @@ const App = () => {
     return archiveMap[selectedYear]?.includes(monthNum);
   };
 
+  // Chessboard Logic
   function getGameOutcome(game, username) {
     const userIsWhite =
       game.white.username.toLowerCase() === username.toLowerCase();
@@ -240,6 +161,131 @@ const App = () => {
     if (lossResults.includes(userResult)) return "lost";
     return "draw";
   }
+  const handleSearch = (e) => {
+    e.preventDefault();
+    filterGames(searchQuery);
+  };
+
+  const filterGames = (query) => {
+    const q = query.toLowerCase();
+    const filtered = displayedGames.filter((game) => {
+      const opponent =
+        game.white.username.toLowerCase() === username.toLowerCase()
+          ? game.black.username
+          : game.white.username;
+
+      if (opponent.toLowerCase().includes(q)) return true;
+
+      try {
+        const chess = new Chess();
+        chess.loadPgn(game.pgn);
+        const headers = chess.header();
+        const eco = headers["ECO"] || null;
+        console.log(eco);
+
+        const moves = chess
+          .history({ verbose: true })
+          .slice(0, 20)
+          .map((move) => move.san)
+          .join(" ");
+
+        const opening = getOpeningNameFromMoves(moves, eco) || "";
+        return opening.toLowerCase().includes(q);
+      } catch {
+        return false;
+      }
+    });
+
+    setFilteredGames(filtered);
+    setHasSelectedFilter(true);
+  };
+
+  const handleSearchQueryChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    if (value.trim() === "") {
+      setDropdownList(opponentList);
+      return;
+    }
+
+    const filtered = dropdownList.filter((item) =>
+      item.value.toLowerCase().includes(value.toLowerCase())
+    );
+
+    setDropdownList(filtered);
+  };
+
+  const handleDropdownSelect = async (item) => {
+    setSearchQuery(item.value);
+    setHasSelectedFilter(true);
+    setIsFiltering(true);
+
+    try {
+      if (item.type === "opponent") {
+        const filtered = displayedGames.filter((game) => {
+          const opponent =
+            game.white.username.toLowerCase() === username.toLowerCase()
+              ? game.black.username
+              : game.white.username;
+
+          return opponent.toLowerCase() === item.value.toLowerCase();
+        });
+
+        setFilteredGames(filtered);
+        setSelectedGame(null);
+      }
+
+      if (item.type === "opening") {
+        const filtered = displayedGames.filter((game) => {
+          try {
+            const chess = new Chess();
+            chess.loadPgn(game.pgn);
+            const headers = chess.header();
+
+            const openingName = headers.ECOUrl
+              ? headers.ECOUrl.split("/")
+                  .pop()
+                  .replace(/-/g, " ")
+                  .replace(/\s+/g, " ")
+                  .replace(/'/g, "")
+                  .trim()
+                  .toLowerCase()
+              : "";
+
+            const selectedOpening = item.value
+              ? item.value
+                  .split("/")
+                  .pop()
+                  .replace(/-/g, " ")
+                  .replace(/\s+/g, " ")
+                  .replace(/'/g, "")
+                  .trim()
+                  .toLowerCase()
+              : "";
+
+            console.log(
+              `Opening Name: ${openingName}, Selected Opening: ${selectedOpening}`
+            );
+
+            return (
+              openingName.includes(selectedOpening) ||
+              selectedOpening.includes(openingName)
+            );
+          } catch {
+            return false;
+          }
+        });
+
+        setFilteredGames(filtered);
+        setSelectedGame(null);
+      }
+    } finally {
+      setIsFiltering(false);
+    }
+  };
+
+  // Opponent and Opening Logic
   const extractRootName = (name) => {
     const commonSuffixes = [
       "Opening",
@@ -268,9 +314,9 @@ const App = () => {
   function getOpeningNameFromMoves(movesStr, eco = null) {
     const normalizedMoves = normalizeMoves(movesStr);
     const gameMoves = normalizedMoves.split(/\s+/);
+    const matchingOpenings = [];
     let bestMatch = null;
     let bestLength = 0;
-    const matchingOpenings = [];
 
     // Iterate through the openingMap to find all matching openings
     for (const [openingName, variations] of openingMap.entries()) {
@@ -335,26 +381,60 @@ const App = () => {
       opponents[opponent] = (opponents[opponent] || 0) + 1;
 
       try {
-        const chess = new Chess();
-        chess.loadPgn(game.pgn);
+        const ecoUrlMatch = game.pgn.match(/\[ECOUrl\s+"([^"]+)"\]/);
+        if (ecoUrlMatch?.[1]) {
+          const ecoUrl = decodeURIComponent(ecoUrlMatch[1]);
+          let openingName = ecoUrl.split("/").pop().replace(/_/g, " ");
 
-        // Extract the moves from the game
-        const moves = chess
-          .history({ verbose: true })
-          .map((move) => move.san)
-          .join(" ");
-        const normalizedMoves = normalizeMoves(moves);
+          // Remove trailing move notation like "2...dxe4"
+          openingName = openingName
+            .replace(/\d+\.{1,3}[a-z]?(\.\.\.)?.*\s*$/i, "")
+            .trim();
 
-        // Find the matching opening name by comparing moves
-        const headers = chess.header();
-        const eco = headers["ECO"] || null;
-        const openingName = getOpeningNameFromMoves(normalizedMoves, eco);
+          // Strip descriptors after ":" or "("
+          openingName = openingName.split(":")[0].split("(")[0].trim();
 
-        if (openingName) {
-          openings[openingName] = (openings[openingName] || 0) + 1;
+          // Keep apostrophes but normalize spaces and hyphens
+          openingName = openingName
+            .replace(/-/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+
+          // Normalize function (keeps apostrophes for matching later)
+          const normalize = (s) =>
+            s
+              .toLowerCase()
+              .replace(/[^a-z0-9' ]/g, "")
+              .trim();
+
+          const normOpening = normalize(openingName);
+
+          // Find the best matching opening from your JSON list
+          const matchedMain = openingsData.reduce((best, main) => {
+            const normMain = normalize(main);
+            const mainWords = normMain.split(" ");
+            const matchedWords = mainWords.filter((word) =>
+              normOpening.includes(word)
+            );
+            const score = matchedWords.length / mainWords.length; // % of words matched
+
+            if (
+              !best ||
+              score > best.score ||
+              (score === best.score && main.length > best.value.length)
+            ) {
+              return { value: main, score };
+            }
+            return best;
+          }, null);
+
+          const finalOpening = matchedMain?.value || openingName;
+          openings[finalOpening] = (openings[finalOpening] || 0) + 1;
+
+          console.log(`Final Opening Name: ${finalOpening}`, ecoUrl);
         }
-      } catch (error) {
-        console.error("Failed to parse PGN:", error);
+      } catch (err) {
+        console.error("Error extracting opening from PGN:", err);
       }
     }
 
@@ -378,108 +458,6 @@ const App = () => {
     setDropdownList([...opponentItems, ...openingItems]);
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    filterGames(searchQuery);
-  };
-
-  const filterGames = (query) => {
-    const q = query.toLowerCase();
-    const filtered = displayedGames.filter((game) => {
-      const opponent =
-        game.white.username.toLowerCase() === username.toLowerCase()
-          ? game.black.username
-          : game.white.username;
-
-      if (opponent.toLowerCase().includes(q)) return true;
-
-      try {
-        const chess = new Chess();
-        chess.loadPgn(game.pgn);
-        const headers = chess.header();
-        const eco = headers["ECO"] || null;
-
-        const moves = chess
-          .history({ verbose: true })
-          .slice(0, 20)
-          .map((move) => move.san)
-          .join(" ");
-
-        const opening = getOpeningNameFromMoves(moves, eco) || "";
-        return opening.toLowerCase().includes(q);
-      } catch {
-        return false;
-      }
-    });
-
-    setFilteredGames(filtered);
-    setHasSelectedFilter(true);
-  };
-
-  const handleSearchQueryChange = (e) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-
-    if (value.trim() === "") {
-      setDropdownList(opponentList);
-      return;
-    }
-
-    const filtered = dropdownList.filter((item) =>
-      item.value.toLowerCase().includes(value.toLowerCase())
-    );
-
-    setDropdownList(filtered);
-  };
-
-  const handleDropdownSelect = async (item) => {
-    setSearchQuery(item.value);
-    setHasSelectedFilter(true);
-    setIsFiltering(true);
-
-    try {
-      if (item.type === "opponent") {
-        const filtered = displayedGames.filter((game) => {
-          const opponent =
-            game.white.username.toLowerCase() === username.toLowerCase()
-              ? game.black.username
-              : game.white.username;
-
-          return opponent.toLowerCase() === item.value.toLowerCase();
-        });
-
-        setFilteredGames(filtered);
-        setSelectedGame(null);
-      }
-
-      if (item.type === "opening") {
-        const filtered = displayedGames.filter((game) => {
-          try {
-            const chess = new Chess();
-            chess.loadPgn(game.pgn);
-            const headers = chess.header();
-            const eco = headers["ECO"] || null;
-            const moves = chess.history().join(" ");
-            const opening = getOpeningNameFromMoves(moves, eco);
-
-            return opening?.toLowerCase() === item.value.toLowerCase();
-          } catch {
-            return false;
-          }
-        });
-
-        setFilteredGames(filtered);
-        setSelectedGame(null);
-        const filteredDropdown = opponentList.filter((entry) =>
-          entry.value.toLowerCase().includes(item.value.toLowerCase())
-        );
-        setDropdownList(filteredDropdown);
-      }
-    } finally {
-      setIsFiltering(false);
-    }
-  };
-
   useEffect(() => {
     generateOpponentOpeningList(displayedGames);
   }, [displayedGames]);
@@ -487,29 +465,12 @@ const App = () => {
   return (
     <div className="bg-[#0D0D0D] poppins">
       {!profile ? (
-        <div className="flex flex-col items-center px-10 max-md:px-5 space-y-6 h-[100svh] justify-center quicksand">
-          <KnightBoard />
-          <h2 className="text-2xl font-semibold text-white text-center">
-            Enter your Chess.com username
-          </h2>
-          <form onSubmit={handleSubmit} className="w-full max-w-md">
-            <div className="relative">
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2 outline-none focus:border-[#5ED3F3] border border-transparent rounded-lg bg-[#1e1e1e] text-white placeholder:text-[#a0a0a0]"
-                placeholder="Username"
-              />
-              <button
-                type="submit"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <AiOutlineSearch size={20} />
-              </button>
-            </div>
-          </form>
-        </div>
+        <Login
+          username={username}
+          setUsername={setUsername}
+          handleSubmit={handleSubmit}
+          error={error}
+        />
       ) : (
         <>
           {loading ? (

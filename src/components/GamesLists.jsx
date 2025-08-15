@@ -13,7 +13,6 @@ const GamesLists = ({
   loading,
   setLoading,
 }) => {
-  
   const [statsFilteredGames, setStatsFilteredGames] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const gamesPerPage = 6;
@@ -103,10 +102,9 @@ const GamesLists = ({
     }
   };
 
-  const currentGames = statsFilteredGames.sort((a, b) => b.end_time - a.end_time).slice(
-    (currentPage - 1) * gamesPerPage,
-    currentPage * gamesPerPage
-  );
+  const currentGames = statsFilteredGames
+    .sort((a, b) => b.end_time - a.end_time)
+    .slice((currentPage - 1) * gamesPerPage, currentPage * gamesPerPage);
 
   return (
     <div>
@@ -277,8 +275,8 @@ const GamesLists = ({
             <MdNavigateBefore />
           </button>
           <span className="rounded-[100px] px-3 h-[40px] flex items-center justify-center">
-            {currentPage} / {Math.ceil(statsFilteredGames.length / gamesPerPage)}
-            
+            {currentPage} /{" "}
+            {Math.ceil(statsFilteredGames.length / gamesPerPage)}
           </span>
           <button
             onClick={handleNextPage}

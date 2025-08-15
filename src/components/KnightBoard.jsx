@@ -13,7 +13,7 @@ const knightMoves = [
 
 const isValid = (x, y) => x >= 0 && x < 3 && y >= 0 && y < 3;
 
-const KnightBoard3x3 = () => {
+const KnightBoard = () => {
   const [position, setPosition] = useState([0, 0]);
   const [prevPosition, setPrevPosition] = useState(null);
 
@@ -79,4 +79,4 @@ const KnightBoard3x3 = () => {
   );
 };
 
-export default KnightBoard3x3;
+export default KnightBoard;

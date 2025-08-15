@@ -301,6 +301,9 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
         const blackUsername = getHeaderValue(parsed[0].headers, "Black");
         const whiteRating = getHeaderValue(parsed[0].headers, "WhiteElo");
         const blackRating = getHeaderValue(parsed[0].headers, "BlackElo");
+        const ecoURL = getHeaderValue(parsed[0].headers, "ECOUrl")
+        console.log(ecoURL);
+        
 
         setTermination(getHeaderValue(parsed[0].headers, "Termination"));
         setShowTermination(true);

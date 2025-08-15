@@ -34,13 +34,6 @@ function normalizeMoves(moves) {
   return moves.replace(/\d+\.\s?/g, "").trim();
 }
 
-function normalizeString(str) {
-  return str
-    .replace(/[-]/g, " ") // replace hyphens and apostrophes with space
-    .replace(/\s+/g, " ") // collapse multiple spaces
-    .trim();
-}
-
 const App = () => {
   const [error, setError] = useState("");
   const [username, setUsername] = useState("");
@@ -77,7 +70,6 @@ const App = () => {
           const {
             profile,
             archiveMap,
-            sortedYears,
             mostRecentYear,
             mostRecentMonth,
             games,
@@ -505,7 +497,7 @@ const App = () => {
 
   return (
     <div className="bg-[#0D0D0D] poppins">
-      {!profile ? (
+      {!profile && !loading ? (
         <Login
           username={username}
           setUsername={setUsername}

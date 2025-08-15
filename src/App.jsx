@@ -62,6 +62,43 @@ const App = () => {
   const [isFiltering, setIsFiltering] = useState(false);
   const [dropdownList, setDropdownList] = useState([]);
   const yearRef = useRef(null);
+  
+
+  useEffect(() => {
+    const savedUsername = localStorage.getItem("username");
+    if (savedUsername) {
+      setUsername(savedUsername);
+
+      // Auto-login
+      (async () => {
+        try {
+          setLoading(true);
+
+          const {
+            profile,
+            archiveMap,
+            sortedYears,
+            mostRecentYear,
+            mostRecentMonth,
+            games,
+            key,
+          } = await getUserArchivesAndGames(savedUsername);
+
+          setProfile(profile);
+          setArchiveMap(archiveMap);
+          setSelectedYear(mostRecentYear);
+          setSelectedMonth(mostRecentMonth);
+          setMonthlyGames({ [key]: games });
+          setDisplayedGames(games);
+        } catch (err) {
+          console.error("Auto-login failed:", err);
+          localStorage.removeItem("username"); // Remove invalid username
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+  }, []);
 
   // Login Logic
   const handleSubmit = async (e) => {
@@ -69,6 +106,10 @@ const App = () => {
     setError("");
     try {
       setLoading(true);
+
+      // Store username in localStorage
+      localStorage.setItem("username", username);
+
       const {
         profile,
         archiveMap,

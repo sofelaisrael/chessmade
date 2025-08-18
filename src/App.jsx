@@ -15,6 +15,26 @@ import KnightBoard from "./components/KnightBoard";
 import Login from "./pages/Login";
 import openingsData from "./data/openings.json";
 
+const normalize = (s) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9' ]/g, "")
+    .split(" ")
+    .filter(
+      (w) =>
+        w &&
+        ![
+          "opening",
+          "game",
+          "defense",
+          "attack",
+          "variation",
+          "system",
+        ].includes(w)
+    )
+    .join(" ")
+    .trim();
+
 const monthNames = [
   "Jan",
   "Feb",
@@ -55,7 +75,6 @@ const App = () => {
   const [isFiltering, setIsFiltering] = useState(false);
   const [dropdownList, setDropdownList] = useState([]);
   const yearRef = useRef(null);
-  
 
   useEffect(() => {
     const savedUsername = localStorage.getItem("username");
@@ -194,39 +213,90 @@ const App = () => {
     if (lossResults.includes(userResult)) return "lost";
     return "draw";
   }
+
   const handleSearch = (e) => {
     e.preventDefault();
-    filterGames(searchQuery);
+    const selectedItem = dropdownList.find(
+      (item) => item.value.toLowerCase() === searchQuery.toLowerCase()
+    );
+
+    if (selectedItem) {
+      filterGames(selectedItem.id); // ✅ pass unique id
+    }
   };
 
-  const filterGames = (query) => {
-    const q = query.toLowerCase();
+  const filterGames = (id) => {
+    const selectedItem = dropdownList.find((item) => item.id === id);
+    if (!selectedItem) return;
+
+    console.log("Selected Item:", selectedItem);
+
+    const { type, value } = selectedItem;
+
     const filtered = displayedGames.filter((game) => {
-      const opponent =
-        game.white.username.toLowerCase() === username.toLowerCase()
-          ? game.black.username
-          : game.white.username;
+      if (type === "opponent") {
+        const opponent =
+          game.white.username.toLowerCase() === username.toLowerCase()
+            ? game.black.username
+            : game.white.username;
 
-      if (opponent.toLowerCase().includes(q)) return true;
-
-      try {
-        const chess = new Chess();
-        chess.loadPgn(game.pgn);
-        const headers = chess.header();
-        const eco = headers["ECO"] || null;
-        console.log(eco);
-
-        const moves = chess
-          .history({ verbose: true })
-          .slice(0, 20)
-          .map((move) => move.san)
-          .join(" ");
-
-        const opening = getOpeningNameFromMoves(moves, eco) || "";
-        return opening.toLowerCase().includes(q);
-      } catch {
-        return false;
+        return opponent.toLowerCase() === value.toLowerCase();
       }
+
+      if (type === "opening") {
+        try {
+          const chess = new Chess();
+          chess.loadPgn(game.pgn);
+          const headers = chess.header();
+
+          const openingName = headers.ECOUrl
+            ? headers.ECOUrl.split("/")
+                .pop()
+                .replace(/-/g, " ")
+                .replace(/\s+/g, " ")
+                .replace(/'/g, "")
+                .replace(/\d+\.{1,3}[a-z]?(\.\.\.)?.*\s*$/i, "")
+                .split(":")[0]
+                .split("(")[0]
+                .trim()
+                .toLowerCase()
+            : "";
+
+          const normOpening = normalize(openingName);
+
+          console.log("Normalized Opening Name:", normOpening, openingName);
+
+          const matchedMain = openingsData.reduce((best, main) => {
+            const normMain = normalize(main);
+            const mainWords = normMain.split(" ");
+            const matchedWords = mainWords.filter((word) =>
+              normOpening.includes(word)
+            );
+            const score = matchedWords.length / mainWords.length;
+            // console.log("Matching Main Opening:", main, "Score:", score, mainWords, matchedWords);
+            if (
+              !best ||
+              score > best.score ||
+              (score === best.score && normMain.length > best.normMainLength)
+            ) {
+              return { value: main, score, normMainLength: normMain.length };
+            }
+            return best
+          }, null);
+          // return best;
+
+          console.log("Opening Name:", openingName, matchedMain, value);
+
+          return (
+            matchedMain?.value.toLowerCase().includes(value.toLowerCase()) ||
+            value.toLowerCase().includes(matchedMain?.value.toLowerCase())
+          );
+        } catch {
+          return false;
+        }
+      }
+
+      return false;
     });
 
     setFilteredGames(filtered);
@@ -235,10 +305,12 @@ const App = () => {
 
   const handleSearchQueryChange = (e) => {
     const value = e.target.value;
+    setShowDropdown(true);
     setSearchQuery(value);
 
     if (value.trim() === "") {
-      setDropdownList(opponentList);
+      // default to full dropdown list from generator
+      setDropdownList(dropdownList);
       return;
     }
 
@@ -250,157 +322,19 @@ const App = () => {
   };
 
   const handleDropdownSelect = async (item) => {
-    setSearchQuery(item.value);
+    setSearchQuery(item.value); // still show the name in the search bar
     setHasSelectedFilter(true);
     setIsFiltering(true);
 
     try {
-      if (item.type === "opponent") {
-        const filtered = displayedGames.filter((game) => {
-          const opponent =
-            game.white.username.toLowerCase() === username.toLowerCase()
-              ? game.black.username
-              : game.white.username;
-
-          return opponent.toLowerCase() === item.value.toLowerCase();
-        });
-
-        setFilteredGames(filtered);
-        setSelectedGame(null);
-      }
-
-      if (item.type === "opening") {
-        const filtered = displayedGames.filter((game) => {
-          try {
-            const chess = new Chess();
-            chess.loadPgn(game.pgn);
-            const headers = chess.header();
-
-            const openingName = headers.ECOUrl
-              ? headers.ECOUrl.split("/")
-                  .pop()
-                  .replace(/-/g, " ")
-                  .replace(/\s+/g, " ")
-                  .replace(/'/g, "")
-                  .trim()
-                  .toLowerCase()
-              : "";
-
-            const selectedOpening = item.value
-              ? item.value
-                  .split("/")
-                  .pop()
-                  .replace(/-/g, " ")
-                  .replace(/\s+/g, " ")
-                  .replace(/'/g, "")
-                  .trim()
-                  .toLowerCase()
-              : "";
-
-            console.log(
-              `Opening Name: ${openingName}, Selected Opening: ${selectedOpening}`
-            );
-
-            return (
-              openingName.includes(selectedOpening) ||
-              selectedOpening.includes(openingName)
-            );
-          } catch {
-            return false;
-          }
-        });
-
-        setFilteredGames(filtered);
-        setSelectedGame(null);
-      }
+      filterGames(item.id); // ✅ use id, not value
+      setSelectedGame(null);
     } finally {
       setIsFiltering(false);
     }
   };
 
   // Opponent and Opening Logic
-  const extractRootName = (name) => {
-    const commonSuffixes = [
-      "Opening",
-      "Game",
-      "Gambit",
-      "Defense",
-      "Attack",
-      "Variation",
-    ];
-
-    const parts = name.split(/\s+/);
-
-    // Only strip the suffix if there's more than 2 words (preserves "King's Pawn")
-    if (parts.length >= 3 && commonSuffixes.includes(parts[parts.length - 1])) {
-      return parts.slice(0, -1).join(" ");
-    }
-
-    // If the last word is a suffix and there's at least 2 words, strip it
-    if (parts.length >= 2 && commonSuffixes.includes(parts[parts.length - 1])) {
-      return parts.slice(0, -1).join(" ");
-    }
-
-    return name;
-  };
-
-  function getOpeningNameFromMoves(movesStr, eco = null) {
-    const normalizedMoves = normalizeMoves(movesStr);
-    const gameMoves = normalizedMoves.split(/\s+/);
-    const matchingOpenings = [];
-    let bestMatch = null;
-    let bestLength = 0;
-
-    // Iterate through the openingMap to find all matching openings
-    for (const [openingName, variations] of openingMap.entries()) {
-      for (const variation of variations) {
-        const variationMoves = variation.split(/\s+/);
-        let matches = true;
-
-        for (let i = 0; i < variationMoves.length; i++) {
-          if (variationMoves[i] !== gameMoves[i]) {
-            matches = false;
-            break;
-          }
-        }
-
-        if (matches) {
-          matchingOpenings.push(openingName);
-
-          // Track the best match based on the number of moves
-          if (variationMoves.length > bestLength) {
-            bestMatch = openingName;
-            bestLength = variationMoves.length;
-          }
-        }
-      }
-    }
-
-    // If multiple matches are found, select the shortest name
-    if (matchingOpenings.length > 0) {
-      bestMatch = matchingOpenings.reduce((shortest, name) =>
-        name.length < shortest.length ? name : shortest
-      );
-    }
-
-    // Fallback to ECO if no matches are found
-    if (!bestMatch && eco) {
-      const opening = Object.values(combinedOpenings).find(
-        (o) => o.eco === eco
-      );
-      if (opening) {
-        bestMatch = opening.name;
-      }
-    }
-
-    // Normalize to root name if available
-    if (bestMatch) {
-      return extractRootName(bestMatch);
-    }
-
-    return "Unknown Opening";
-  }
-
   const generateOpponentOpeningList = async (games) => {
     const opponents = {};
     const openings = {};
@@ -419,47 +353,33 @@ const App = () => {
           const ecoUrl = decodeURIComponent(ecoUrlMatch[1]);
           let openingName = ecoUrl.split("/").pop().replace(/_/g, " ");
 
-          // Remove trailing move notation like "2...dxe4"
           openingName = openingName
             .replace(/\d+\.{1,3}[a-z]?(\.\.\.)?.*\s*$/i, "")
+            .split(":")[0]
+            .split("(")[0]
             .trim();
-
-          // Strip descriptors after ":" or "("
-          openingName = openingName.split(":")[0].split("(")[0].trim();
-
-          // Keep apostrophes but normalize spaces and hyphens
-          openingName = openingName
-            .replace(/-/g, " ")
-            .replace(/\s+/g, " ")
-            .trim();
-
-          // Normalize function (keeps apostrophes for matching later)
-          const normalize = (s) =>
-            s
-              .toLowerCase()
-              .replace(/[^a-z0-9' ]/g, "")
-              .trim();
 
           const normOpening = normalize(openingName);
 
-          // Find the best matching opening from your JSON list
           const matchedMain = openingsData.reduce((best, main) => {
             const normMain = normalize(main);
             const mainWords = normMain.split(" ");
             const matchedWords = mainWords.filter((word) =>
               normOpening.includes(word)
             );
-            const score = matchedWords.length / mainWords.length; // % of words matched
+            const score = matchedWords.length / mainWords.length;
 
             if (
               !best ||
               score > best.score ||
-              (score === best.score && main.length > best.value.length)
+              (score === best.score && normMain.length > best.normMainLength)
             ) {
-              return { value: main, score };
+              return { value: main, score, normMainLength: normMain.length };
             }
             return best;
           }, null);
+
+          console.log("Matched Main Opening:", matchedMain);
 
           const finalOpening = matchedMain?.value || openingName;
           openings[finalOpening] = (openings[finalOpening] || 0) + 1;
@@ -472,7 +392,8 @@ const App = () => {
     }
 
     const opponentItems = Object.entries(opponents)
-      .map(([name, count]) => ({
+      .map(([name, count], i) => ({
+        id: `opponent-${i}`, // ✅ unique id
         type: "opponent",
         value: name,
         count,
@@ -480,15 +401,18 @@ const App = () => {
       .sort((a, b) => b.count - a.count);
 
     const openingItems = Object.entries(openings)
-      .map(([name, count]) => ({
+      .map(([name, count], i) => ({
+        id: `opening-${i}`, // ✅ unique id
         type: "opening",
         value: name,
         count,
       }))
       .sort((a, b) => b.count - a.count);
 
-    setOpponentList([...opponentItems, ...openingItems]);
-    setDropdownList([...opponentItems, ...openingItems]);
+    const allItems = [...opponentItems, ...openingItems];
+    console.log("All Items:", allItems);
+    // setOpponentList(allItems);
+    setDropdownList(allItems);
   };
 
   useEffect(() => {

@@ -14,6 +14,7 @@ import { Chess } from "chess.js";
 import KnightBoard from "./components/KnightBoard";
 import Login from "./pages/Login";
 import openingsData from "./data/openings.json";
+import Navbar from "./components/Navbar";
 
 const normalize = (s) =>
   s
@@ -77,6 +78,13 @@ const App = () => {
   const yearRef = useRef(null);
 
   useEffect(() => {
+    const storedUser = localStorage.getItem("username");
+    if (storedUser) {
+      setUsername(storedUser);
+    }
+  }, []);
+
+  useEffect(() => {
     const savedUsername = localStorage.getItem("username");
     if (savedUsername) {
       setUsername(savedUsername);
@@ -118,9 +126,6 @@ const App = () => {
     try {
       setLoading(true);
 
-      // Store username in localStorage
-      localStorage.setItem("username", username);
-
       const {
         profile,
         archiveMap,
@@ -130,6 +135,15 @@ const App = () => {
         games,
         key,
       } = await getUserArchivesAndGames(username);
+
+      // ✅ If we reach here, username is valid
+      localStorage.setItem("username", username);
+
+      const accounts = JSON.parse(localStorage.getItem("accounts")) || [];
+      if (!accounts.includes(username)) {
+        accounts.push(username);
+        localStorage.setItem("accounts", JSON.stringify(accounts));
+      }
 
       setProfile(profile);
       setArchiveMap(archiveMap);
@@ -281,7 +295,7 @@ const App = () => {
             ) {
               return { value: main, score, normMainLength: normMain.length };
             }
-            return best
+            return best;
           }, null);
           // return best;
 
@@ -436,24 +450,7 @@ const App = () => {
             </div>
           ) : (
             <>
-              <header className="shadow-md flex justify-between px-10 py-5 items-center max-md:px-5 gap-5 relative poppins">
-                <div className="flex gap-10 justify-between items-center h-full">
-                  <div className="text-3xl font-bold text-[#fff] max-lg:text-xl max-md:text-lg">
-                    ChessMore
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4 h-full">
-                  <div className="text-xl font-semibold text-[#fff]">
-                    {profile?.username}
-                  </div>
-                  <img
-                    src={profile?.avatar || defaultimg}
-                    alt={profile?.username}
-                    className="w-12 h-12 rounded-full max-lg:size-10 max-md:size-9"
-                  />
-                </div>
-              </header>
+              <Navbar username={username} setUsername={setUsername} />
 
               <main className="max-w-7xl mx-auto px- py-6 px-5">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

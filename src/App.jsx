@@ -450,7 +450,7 @@ const App = () => {
             </div>
           ) : (
             <>
-              <Navbar username={username} setUsername={setUsername} />
+              <Navbar profile={profile} username={username} setUsername={setUsername} />
 
               <main className="max-w-7xl mx-auto px- py-6 px-5">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

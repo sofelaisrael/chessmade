@@ -1,3 +1,5 @@
+import { setCachedGames, getCachedGames } from "./gameCache";
+
 export async function getProfile(username) {
   const response = await fetch(`https://api.chess.com/pub/player/${username}`);
   if (!response.ok) throw new Error("Failed to fetch profile");
@@ -7,13 +9,17 @@ export async function getProfile(username) {
 export async function getUserArchivesAndGames(username) {
   try {
     // Fetch profile
-    const profileRes = await fetch(`https://api.chess.com/pub/player/${username}`);
+    const profileRes = await fetch(
+      `https://api.chess.com/pub/player/${username}`
+    );
     console.log(profileRes);
     if (!profileRes.ok) throw new Error("Failed to fetch profile");
     const profile = await profileRes.json();
 
     // Fetch archives
-    const archiveRes = await fetch(`https://api.chess.com/pub/player/${username}/games/archives`);
+    const archiveRes = await fetch(
+      `https://api.chess.com/pub/player/${username}/games/archives`
+    );
     if (!archiveRes.ok) throw new Error("Failed to fetch archives");
     const archiveData = await archiveRes.json();
     const archiveUrls = archiveData.archives;
@@ -40,7 +46,11 @@ export async function getUserArchivesAndGames(username) {
 
     // Fetch games for most recent year/month
     const key = `${mostRecentYear}-${mostRecentMonth}`;
-    const games = await getMonthlyGames(username, parseInt(mostRecentYear), parseInt(mostRecentMonth));
+    const games = await getMonthlyGames(
+      username,
+      parseInt(mostRecentYear),
+      parseInt(mostRecentMonth)
+    );
 
     return {
       profile,
@@ -59,6 +69,12 @@ export async function getUserArchivesAndGames(username) {
 
 export async function getMonthlyGames(username, year, month) {
   try {
+    const cached = getCachedGames(year, month);
+    if (cached) {
+      console.log("Loaded from cache:", year, month);
+      return cached;
+    }
+
     const response = await fetch(
       `https://api.chess.com/pub/player/${username}/games/${year}/${month
         .toString()
@@ -70,9 +86,12 @@ export async function getMonthlyGames(username, year, month) {
     }
 
     const data = await response.json();
-    return data.games || []; 
+
+    setCachedGames(year, month, data.games);
+
+    return data.games || [];
   } catch (error) {
     console.error("Error fetching monthly games:", error);
-    return []; 
+    return [];
   }
 }

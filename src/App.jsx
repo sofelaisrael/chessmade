@@ -71,11 +71,12 @@ const App = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [loadedGames, setLoadedGames] = useState(false);
   const [filteredGames, setFilteredGames] = useState([]);
-  const [opponentList, setOpponentList] = useState([]);
   const [hasSelectedFilter, setHasSelectedFilter] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
   const [dropdownList, setDropdownList] = useState([]);
   const yearRef = useRef(null);
+  const [currentFilteredPage, setCurrentFilteredPage] = useState(1);
+  const gamesPerPage = 5; // adjust as needed
 
   useEffect(() => {
     const storedUser = localStorage.getItem("username");
@@ -532,37 +533,79 @@ const App = () => {
                         ) : filteredGames.length === 0 ? (
                           <p className="text-gray-500">No games found.</p>
                         ) : (
-                          <ul className="space-y-2">
-                            {filteredGames.map((game, index) => (
-                              <li
-                                key={index}
-                                className="p-2 border border-[#494949] rounded-lg hover:bg-[#333] cursor-pointer flex items-center justify-between"
-                                onClick={() => setSelectedGame(game)}
+                          <>
+                            <ul className="space-y-2">
+                              {filteredGames
+                                .slice(
+                                  (currentFilteredPage - 1) * gamesPerPage,
+                                  currentFilteredPage * gamesPerPage
+                                )
+                                .map((game, index) => (
+                                  <li
+                                    key={index}
+                                    className="p-2 border border-[#494949] rounded-lg hover:bg-[#333] cursor-pointer flex items-center justify-between"
+                                    onClick={() => setSelectedGame(game)}
+                                  >
+                                    <div className="flex items-center gap-3 truncate w-[70%]">
+                                      <BiUser className="shrink-0" />
+                                      {game.white.username.toLocaleLowerCase() ===
+                                      username.toLocaleLowerCase() ? (
+                                        <div className="flex items-center gap-3 truncate">
+                                          <div className="size-3 bg-black rounded-full border shrink-0"></div>
+                                          <div className="truncate">
+                                            {game.black.username}
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-3">
+                                          <div className="size-3 bg-white rounded-full border "></div>
+                                          {game.white.username}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {getGameOutcome(game, username)}{" "}
+                                      <RxCaretRight />
+                                    </div>
+                                  </li>
+                                ))}
+                            </ul>
+                            <div className="flex justify-center gap-3 mt-4 items-center">
+                              <button
+                                onClick={() =>
+                                  setCurrentFilteredPage((p) =>
+                                    Math.max(p - 1, 1)
+                                  )
+                                }
+                                disabled={currentFilteredPage === 1}
+                                className="px-3 py-1 bg-[#222] rounded disabled:opacity-50 cursor-pointer"
                               >
-                                <div className="flex items-center gap-3 truncate w-[70%]">
-                                  <BiUser className="shrink-0" />
-                                  {game.white.username.toLocaleLowerCase() ===
-                                  username.toLocaleLowerCase() ? (
-                                    <div className="flex items-center gap-3 truncate">
-                                      <div className="size-3 bg-black rounded-full border shrink-0"></div>
-                                      <div className="truncate">
-                                        {game.black.username}
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-3">
-                                      <div className="size-3 bg-white rounded-full border "></div>
-                                      {game.white.username}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className=" flex items-center gap-2">
-                                  {getGameOutcome(game, username)}{" "}
-                                  <RxCaretRight />
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
+                                Prev
+                              </button>
+                              <span className="text-white">
+                               {currentFilteredPage} / {Math.ceil(filteredGames.length / gamesPerPage)}
+                              </span>
+                              <button
+                                onClick={() =>
+                                  setCurrentFilteredPage((p) =>
+                                    p <
+                                    Math.ceil(
+                                      filteredGames.length / gamesPerPage
+                                    )
+                                      ? p + 1
+                                      : p
+                                  )
+                                }
+                                disabled={
+                                  currentFilteredPage ===
+                                  Math.ceil(filteredGames.length / gamesPerPage)
+                                }
+                                className="px-3 py-1 bg-[#222] rounded disabled:opacity-50 cursor-pointer"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          </>
                         )}
                       </div>
                     )}

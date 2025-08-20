@@ -169,8 +169,10 @@ const App = () => {
 
   // Gamelist Logic
   const handleMonthClick = async (monthIndex) => {
-    setLoadedGames(true);
     const monthNum = String(monthIndex + 1).padStart(2, "0");
+
+    if (selectedMonth === monthNum) return;
+    setLoadedGames(true);
     const key = `${selectedYear}-${monthNum}`;
     setSelectedMonth(monthNum);
 
@@ -450,7 +452,11 @@ const App = () => {
             </div>
           ) : (
             <>
-              <Navbar profile={profile} username={username} setUsername={setUsername} />
+              <Navbar
+                profile={profile}
+                username={username}
+                setUsername={setUsername}
+              />
 
               <main className="max-w-7xl mx-auto px- py-6 px-5">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

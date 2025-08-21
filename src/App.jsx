@@ -232,17 +232,6 @@ const App = () => {
     return "draw";
   }
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    const selectedItem = dropdownList.find(
-      (item) => item.value.toLowerCase() === searchQuery.toLowerCase()
-    );
-
-    if (selectedItem) {
-      filterGames(selectedItem.id); // ✅ pass unique id
-    }
-  };
-
   const filterGames = (id) => {
     const selectedItem = dropdownList.find((item) => item.id === id);
     if (!selectedItem) return;
@@ -467,7 +456,6 @@ const App = () => {
                     <div className="py-4 w-full">
                       <div className="flex flex-col space-y-2 relative quicksand">
                         <form
-                          onSubmit={handleSearch}
                           className="relative lg:w-full max-lg:w-[446px] sm:w-[446px] mx-auto"
                         >
                           <input
@@ -481,17 +469,10 @@ const App = () => {
                             }
                             className="w-full px-4 py-2 border border-transparent rounded-lg outline-none bg-[#1A1A1A] text-white focus:border-[#5ED3F3] lg:w-full max-lg:w-[446px] sm:w-[446px]"
                           />
-
-                          <button
-                            type="submit"
-                            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                          >
-                            <AiOutlineSearch size={20} />
-                          </button>
                           {searchQuery && (
                             <button
                               onClick={() => setSearchQuery("")}
-                              className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                              className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                             >
                               <RxCross2 size={20} />
                             </button>

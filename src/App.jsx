@@ -1,4 +1,4 @@
-import { RxCaretRight, RxCaretDown } from "react-icons/rx";
+import { RxCaretRight, RxCaretDown, RxCross2 } from "react-icons/rx";
 import { MdKeyboardArrowRight } from "react-icons/md";
 import { BiUser } from "react-icons/bi";
 import { FaChessPawn } from "react-icons/fa";
@@ -76,7 +76,8 @@ const App = () => {
   const [dropdownList, setDropdownList] = useState([]);
   const yearRef = useRef(null);
   const [currentFilteredPage, setCurrentFilteredPage] = useState(1);
-  const gamesPerPage = 5; // adjust as needed
+  const gamesPerPage = 5;
+  const [allDropdownList, setAllDropdownList] = useState([]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("username");
@@ -322,16 +323,16 @@ const App = () => {
 
   const handleSearchQueryChange = (e) => {
     const value = e.target.value;
+    console.log("Search Query Changed:", value);
     setShowDropdown(true);
     setSearchQuery(value);
 
     if (value.trim() === "") {
-      // default to full dropdown list from generator
-      setDropdownList(dropdownList);
+      setDropdownList(allDropdownList);
       return;
     }
 
-    const filtered = dropdownList.filter((item) =>
+    const filtered = allDropdownList.filter((item) =>
       item.value.toLowerCase().includes(value.toLowerCase())
     );
 
@@ -428,6 +429,7 @@ const App = () => {
 
     const allItems = [...opponentItems, ...openingItems];
     console.log("All Items:", allItems);
+    setAllDropdownList(allItems); // Store the full list for future reference
     // setOpponentList(allItems);
     setDropdownList(allItems);
   };
@@ -486,6 +488,14 @@ const App = () => {
                           >
                             <AiOutlineSearch size={20} />
                           </button>
+                          {searchQuery && (
+                            <button
+                              onClick={() => setSearchQuery("")}
+                              className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                            >
+                              <RxCross2 size={20} />
+                            </button>
+                          )} 
                         </form>
                         {showDropdown && dropdownList.length > 0 && (
                           <ul className="rounded shadow-md max-h-40 overflow-y-auto absolte bottom-0">
@@ -583,7 +593,8 @@ const App = () => {
                                 Prev
                               </button>
                               <span className="text-white">
-                               {currentFilteredPage} / {Math.ceil(filteredGames.length / gamesPerPage)}
+                                {currentFilteredPage} /{" "}
+                                {Math.ceil(filteredGames.length / gamesPerPage)}
                               </span>
                               <button
                                 onClick={() =>

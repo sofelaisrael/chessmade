@@ -1,1 +1,0 @@
-can u make this file simple i just want one opening based on d first unique set of move for example english opening in c4, there are other variations but i do not want those variations in dis file so far there is already an opening that leads to dat variation and make it into a json file

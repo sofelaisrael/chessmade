@@ -14,7 +14,7 @@ import { RxExit } from "react-icons/rx";
 import { FaChessKing, FaClock, FaCrown, FaFlag } from "react-icons/fa6";
 
 const ChessBoard = ({ pgn, whiteresult, blackresult, username, game }) => {
-  // console.log(pgn)
+   console.log(pgn)
   const [chess] = useState(new Chess());
   const [moveTreeRoot, setMoveTreeRoot] = useState(null);
   const [currentNode, setCurrentNode] = useState(null);

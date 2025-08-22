@@ -12,7 +12,6 @@ export async function getUserArchivesAndGames(username) {
     const profileRes = await fetch(
       `https://api.chess.com/pub/player/${username}`
     );
-    console.log(profileRes);
     if (!profileRes.ok) throw new Error("Failed to fetch profile");
     const profile = await profileRes.json();
 
@@ -71,7 +70,6 @@ export async function getMonthlyGames(username, year, month) {
   try {
     const cached = getCachedGames(year, month);
     if (cached) {
-      console.log("Loaded from cache:", year, month);
       return cached;
     }
 

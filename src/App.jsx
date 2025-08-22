@@ -76,6 +76,8 @@ const App = () => {
   const [dropdownList, setDropdownList] = useState([]);
   const yearRef = useRef(null);
   const [currentFilteredPage, setCurrentFilteredPage] = useState(1);
+
+  const [filterMode, setFilterMode] = useState("both");
   const gamesPerPage = 5;
   const [allDropdownList, setAllDropdownList] = useState([]);
 
@@ -236,8 +238,6 @@ const App = () => {
     const selectedItem = dropdownList.find((item) => item.id === id);
     if (!selectedItem) return;
 
-    console.log("Selected Item:", selectedItem);
-
     const { type, value } = selectedItem;
 
     const filtered = displayedGames.filter((game) => {
@@ -271,8 +271,6 @@ const App = () => {
 
           const normOpening = normalize(openingName);
 
-          console.log("Normalized Opening Name:", normOpening, openingName);
-
           const matchedMain = openingsData.reduce((best, main) => {
             const normMain = normalize(main);
             const mainWords = normMain.split(" ");
@@ -290,9 +288,6 @@ const App = () => {
             }
             return best;
           }, null);
-          // return best;
-
-          console.log("Opening Name:", openingName, matchedMain, value);
 
           return (
             matchedMain?.value.toLowerCase().includes(value.toLowerCase()) ||
@@ -312,7 +307,6 @@ const App = () => {
 
   const handleSearchQueryChange = (e) => {
     const value = e.target.value;
-    console.log("Search Query Changed:", value);
     setShowDropdown(true);
     setSearchQuery(value);
 
@@ -321,9 +315,14 @@ const App = () => {
       return;
     }
 
-    const filtered = allDropdownList.filter((item) =>
-      item.value.toLowerCase().includes(value.toLowerCase())
-    );
+    const filtered = allDropdownList.filter((item) => {
+      const match = item.value.toLowerCase().includes(value.toLowerCase());
+
+      if (!match) return false;
+      if (filterMode === "opponents") return item.type === "opponent";
+      if (filterMode === "openings") return item.type === "opening";
+      return true;
+    });
 
     setDropdownList(filtered);
   };
@@ -386,12 +385,8 @@ const App = () => {
             return best;
           }, null);
 
-          console.log("Matched Main Opening:", matchedMain);
-
           const finalOpening = matchedMain?.value || openingName;
           openings[finalOpening] = (openings[finalOpening] || 0) + 1;
-
-          console.log(`Final Opening Name: ${finalOpening}`, ecoUrl);
         }
       } catch (err) {
         console.error("Error extracting opening from PGN:", err);
@@ -417,7 +412,6 @@ const App = () => {
       .sort((a, b) => b.count - a.count);
 
     const allItems = [...opponentItems, ...openingItems];
-    console.log("All Items:", allItems);
     setAllDropdownList(allItems); // Store the full list for future reference
     // setOpponentList(allItems);
     setDropdownList(allItems);
@@ -455,9 +449,7 @@ const App = () => {
                   <div className="lg:col-span-1">
                     <div className="py-4 w-full">
                       <div className="flex flex-col space-y-2 relative quicksand">
-                        <form
-                          className="relative lg:w-full max-lg:w-[446px] sm:w-[446px] mx-auto"
-                        >
+                        <form className="relative lg:w-full max-lg:w-[446px] sm:w-[446px] mx-auto">
                           <input
                             type="text"
                             placeholder="Search opponents or openings..."
@@ -469,6 +461,15 @@ const App = () => {
                             }
                             className="w-full px-4 py-2 border border-transparent rounded-lg outline-none bg-[#1A1A1A] text-white focus:border-[#5ED3F3] lg:w-full max-lg:w-[446px] sm:w-[446px]"
                           />
+                          <select
+                            value={filterMode}
+                            onChange={(e) => setFilterMode(e.target.value)}
+                            className="border rounded px-2 py-1"
+                          >
+                            <option value="both">Both</option>
+                            <option value="opponents">Opponents</option>
+                            <option value="openings">Openings</option>
+                          </select>
                           {searchQuery && (
                             <button
                               onClick={() => setSearchQuery("")}
@@ -476,7 +477,7 @@ const App = () => {
                             >
                               <RxCross2 size={20} />
                             </button>
-                          )} 
+                          )}
                         </form>
                         {showDropdown && dropdownList.length > 0 && (
                           <ul className="rounded shadow-md max-h-40 overflow-y-auto absolte bottom-0">

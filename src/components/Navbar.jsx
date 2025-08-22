@@ -6,7 +6,6 @@ import React, { useEffect, useState } from "react";
 import defaultimg from "../assets/default.png";
 
 const Navbar = ({ username, setUsername, profile }) => {
-  console.log(profile);
   const [accounts, setAccounts] = useState([]);
   const [showSidebar, setShowSidebar] = useState(false);
 

@@ -461,15 +461,19 @@ const App = () => {
                             }
                             className="w-full px-4 py-2 border border-transparent rounded-lg outline-none bg-[#1A1A1A] text-white focus:border-[#5ED3F3] lg:w-full max-lg:w-[446px] sm:w-[446px]"
                           />
-                          <select
+                          {/* blocking filter logic for now */}
+                          {/* <select
                             value={filterMode}
-                            onChange={(e) => setFilterMode(e.target.value)}
-                            className="border rounded px-2 py-1"
+                            onChange={(e) => {
+                              setFilterMode(e.target.value)
+                              handleSearchQueryChange({ target: { value: searchQuery } });
+                            }}
+                            className="border rounded px-2 py-1 text-white"
                           >
                             <option value="both">Both</option>
                             <option value="opponents">Opponents</option>
                             <option value="openings">Openings</option>
-                          </select>
+                          </select> */}
                           {searchQuery && (
                             <button
                               onClick={() => setSearchQuery("")}

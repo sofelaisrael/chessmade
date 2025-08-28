@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { RxCaretDown } from "react-icons/rx";
-import { MdNavigateBefore, MdNavigateNext } from "react-icons/md";
-import { TiEquals } from "react-icons/ti";
-import { BiPlus, BiMinus } from "react-icons/bi";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import Filter from "./UI/gamelist/Filter";
+import FilterItem from "./UI/gamelist/FilterItem";
+import Pagination from "./UI/gamelist/Pagination";
 
 const GamesLists = ({
   username = "",
@@ -86,10 +85,6 @@ const GamesLists = ({
     setCurrentPage(1);
   }, [games, filters]);
 
-  const handleFilterChange = (filterName, value) => {
-    setFilters((prev) => ({ ...prev, [filterName]: value }));
-  };
-
   const handleNextPage = () => {
     if (currentPage < Math.ceil(statsFilteredGames.length / gamesPerPage)) {
       setCurrentPage((prev) => prev + 1);
@@ -110,64 +105,26 @@ const GamesLists = ({
     <div>
       <div className="flex space-x-4 items-center my-4 max-md:gap-3 relative max-md:flex-col max-md:items-start max-md:px-2">
         {/* Result Filter */}
-        <div className="res flex items-center gap-5">
-          <span className="text-white font-bold syne w-[80px]">Results:</span>
-          <div className="relative" ref={resultRef}>
-            <button
-              onClick={() => setShowResultDropdown(!showResultDropdown)}
-              className="p-2 border rounded text-white bg-[#1e1e1e] w-32 text-left flex items-center justify-between border-[#777]"
-            >
-              {filters.result.charAt(0).toUpperCase() + filters.result.slice(1)}
-              <RxCaretDown />
-            </button>
-            {showResultDropdown && (
-              <ul className="absolute z-10 mt-1 bg-[#1e1e1e] border rounded w-32 text-white border-[#777]">
-                {["all", "win", "loss", "draw"].map((option) => (
-                  <li
-                    key={option}
-                    className="px-4 py-2 hover:bg-[#333] cursor-pointer"
-                    onClick={() => {
-                      handleFilterChange("result", option);
-                      setShowResultDropdown(false);
-                    }}
-                  >
-                    {option.charAt(0).toUpperCase() + option.slice(1)}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+        <Filter
+          ref={resultRef}
+          title="Result"
+          setShowDropdown={setShowResultDropdown}
+          filters={filters}
+          setFilters={setFilters}
+          items={["all", "win", "loss", "draw"]}
+          showDropdown={showResultDropdown}
+        />
 
         {/* Color Filter */}
-        <div className="col flex items-center gap-5">
-          <span className="text-white font-bold syne w-[80px]">Colors:</span>
-          <div className="relative" ref={colorRef}>
-            <button
-              onClick={() => setShowColorDropdown(!showColorDropdown)}
-              className="p-2 border rounded text-white bg-[#1e1e1e] w-32 text-left flex justify-between items-center border-[#777]"
-            >
-              {filters.color.charAt(0).toUpperCase() + filters.color.slice(1)}
-              <RxCaretDown />
-            </button>
-            {showColorDropdown && (
-              <ul className="absolute z-10 mt-1 bg-[#1e1e1e] border rounded w-32 text-white border-[#777]">
-                {["all", "white", "black"].map((option) => (
-                  <li
-                    key={option}
-                    className="px-4 py-2 hover:bg-[#333] cursor-pointer"
-                    onClick={() => {
-                      handleFilterChange("color", option);
-                      setShowColorDropdown(false);
-                    }}
-                  >
-                    {option.charAt(0).toUpperCase() + option.slice(1)}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+        <Filter
+          ref={colorRef}
+          title="Color"
+          setShowDropdown={setShowColorDropdown}
+          filters={filters}
+          setFilters={setFilters}
+          items={["all", "white", "black"]}
+          showDropdown={showColorDropdown}
+        />
       </div>
 
       <div className="h-full">
@@ -195,70 +152,12 @@ const GamesLists = ({
                   ? "white"
                   : "black";
               return (
-                <li
-                  key={game.url}
-                  onClick={() => onSelectGame(game)}
-                  className="border rounded-lg p-4 text-white border-[#494949] cursor-pointer bg-[#1e1e1e] hover:bg-[#1a1a1a] w-[250px] max-md:w-full flex- max-xl:w-[200px] max-lg:w-[250px] "
-                >
-                  <div className="flex flex-col gap-2">
-                    <div className="flex justify-between">
-                      <div className="text-sm font-medium flex items-center gap-1 truncate w-[80%]">
-                        vs.{" "}
-                        <div
-                          className={`size-3 shrink-0 rounded-full border ${
-                            playerColor === "black"
-                              ? "bg-white border-black"
-                              : "border-white bg-black"
-                          }`}
-                        ></div>
-                        <div className="truncate">
-                          {playerColor === "white"
-                            ? game.black.username
-                            : game.white.username}
-                        </div>
-                      </div>
-                      <span className="text-xs text-gray-400 shrink-0">
-                        {new Date(game.end_time * 1000).toLocaleDateString(
-                          "en-GB",
-                          { day: "2-digit", weekday: "short" }
-                        )}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-400">
-                        {game.time_class.toUpperCase()}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {game.rated ? "Rated" : "Unrated"}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between mt-2">
-                      {playerColor === "white" ? (
-                        game.white.result === "win" ? (
-                          <BiPlus className="text-green-500" />
-                        ) : game.black.result === "win" ? (
-                          <BiMinus className="text-red-500" />
-                        ) : (
-                          <TiEquals className="text-gray-400" />
-                        )
-                      ) : game.black.result === "win" ? (
-                        <BiPlus className="text-green-500" />
-                      ) : game.white.result === "win" ? (
-                        <BiMinus className="text-red-500" />
-                      ) : (
-                        <TiEquals className="text-gray-400" />
-                      )}
-
-                      <span className="text-gray-400 text-xs">
-                        {playerColor === "black"
-                          ? game.black.rating
-                          : game.white.rating}
-                      </span>
-                    </div>
-                  </div>
-                </li>
+                <FilterItem
+                  k={game.url}
+                  playerColor={playerColor}
+                  game={game}
+                  onSelectGame={onSelectGame}
+                />
               );
             })
           )}
@@ -266,29 +165,13 @@ const GamesLists = ({
       </div>
 
       {statsFilteredGames.length > gamesPerPage && (
-        <div className="flex mt-4 text-white items-center gap-2 quicksand">
-          <button
-            onClick={handlePreviousPage}
-            disabled={currentPage === 1}
-            className="p-2 border border-[#777] rounded-full disabled:opacity-50"
-          >
-            <MdNavigateBefore />
-          </button>
-          <span className="rounded-[100px] px-3 h-[40px] flex items-center justify-center">
-            {currentPage} /{" "}
-            {Math.ceil(statsFilteredGames.length / gamesPerPage)}
-          </span>
-          <button
-            onClick={handleNextPage}
-            disabled={
-              currentPage ===
-              Math.ceil(statsFilteredGames.length / gamesPerPage)
-            }
-            className="p-2 border border-[#777] rounded-full disabled:opacity-50"
-          >
-            <MdNavigateNext />
-          </button>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          handleNextPage={handleNextPage}
+          handlePreviousPage={handlePreviousPage}
+          statsFilteredGames={statsFilteredGames}
+          gamesPerPage={gamesPerPage}
+        />
       )}
     </div>
   );

@@ -7,6 +7,7 @@ import { getAttackers, isPieceHanging } from "../lib/board";
 import { AiOutlineClose } from "react-icons/ai";
 import GameStatus from "./UI/chessboard/gameStatus";
 import Controls from "./UI/chessboard/Control";
+import GameAnalysis from "./UI/chessboard/GameAnalysis";
 
 const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
   const [chess] = useState(new Chess());
@@ -264,6 +265,8 @@ const ChessBoard = ({ pgn, whiteresult, blackresult, username }) => {
           )}
         </div>
       </div>
+
+      <GameAnalysis pgn={pgn} />
 
       <Controls
         currentNode={currentNode}

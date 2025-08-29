@@ -1,20 +1,18 @@
 import { RxCaretRight, RxCaretDown, RxCross2 } from "react-icons/rx";
-import { MdKeyboardArrowRight } from "react-icons/md";
-import { BiUser } from "react-icons/bi";
 import { FaChessPawn } from "react-icons/fa";
 import { CgUser } from "react-icons/cg";
-import { AiOutlineSearch } from "react-icons/ai";
 import React, { useState, useEffect, useRef } from "react";
 import ChessBoard from "./components/ChessBoard";
 import GamesLists from "./components/GamesLists";
 import "./App.css";
-import defaultimg from "./assets/default.png";
 import { getMonthlyGames, getUserArchivesAndGames } from "./lib/chesscom";
 import { Chess } from "chess.js";
 import KnightBoard from "./components/KnightBoard";
 import Login from "./pages/Login";
 import openingsData from "./data/openings.json";
 import Navbar from "./components/Navbar";
+import GameFilter from "./components/UI/GameFilter";
+import Selector from "./components/UI/Selector";
 
 const normalize = (s) =>
   s
@@ -50,10 +48,6 @@ const monthNames = [
   "Nov",
   "Dec",
 ];
-
-function normalizeMoves(moves) {
-  return moves.replace(/\d+\.\s?/g, "").trim();
-}
 
 const App = () => {
   const [error, setError] = useState("");
@@ -133,14 +127,12 @@ const App = () => {
       const {
         profile,
         archiveMap,
-        sortedYears,
         mostRecentYear,
         mostRecentMonth,
         games,
         key,
       } = await getUserArchivesAndGames(username);
 
-      // ✅ If we reach here, username is valid
       localStorage.setItem("username", username);
 
       const accounts = JSON.parse(localStorage.getItem("accounts")) || [];
@@ -223,17 +215,6 @@ const App = () => {
   };
 
   // Chessboard Logic
-  function getGameOutcome(game, username) {
-    const userIsWhite =
-      game.white.username.toLowerCase() === username.toLowerCase();
-    const userResult = userIsWhite ? game.white.result : game.black.result;
-    const lossResults = ["checkmated", "resigned", "timeout", "abandoned"];
-
-    if (userResult === "win") return "won";
-    if (lossResults.includes(userResult)) return "lost";
-    return "draw";
-  }
-
   const filterGames = (id) => {
     const selectedItem = dropdownList.find((item) => item.id === id);
     if (!selectedItem) return;
@@ -278,7 +259,6 @@ const App = () => {
               normOpening.includes(word)
             );
             const score = matchedWords.length / mainWords.length;
-            // console.log("Matching Main Opening:", main, "Score:", score, mainWords, matchedWords);
             if (
               !best ||
               score > best.score ||
@@ -537,71 +517,28 @@ const App = () => {
                                   currentFilteredPage * gamesPerPage
                                 )
                                 .map((game, index) => (
-                                  <li
-                                    key={index}
-                                    className="p-2 border border-[#494949] rounded-lg hover:bg-[#333] cursor-pointer flex items-center justify-between"
-                                    onClick={() => setSelectedGame(game)}
-                                  >
-                                    <div className="flex items-center gap-3 truncate w-[70%]">
-                                      <BiUser className="shrink-0" />
-                                      {game.white.username.toLocaleLowerCase() ===
-                                      username.toLocaleLowerCase() ? (
-                                        <div className="flex items-center gap-3 truncate">
-                                          <div className="size-3 bg-black rounded-full border shrink-0"></div>
-                                          <div className="truncate">
-                                            {game.black.username}
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div className="flex items-center gap-3">
-                                          <div className="size-3 bg-white rounded-full border "></div>
-                                          {game.white.username}
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      {getGameOutcome(game, username)}{" "}
-                                      <RxCaretRight />
-                                    </div>
-                                  </li>
+                                  <GameFilter
+                                    game={game}
+                                    setSelectedGame={setSelectedGame}
+                                    username={username}
+                                  />
                                 ))}
                             </ul>
-                            <div className="flex justify-center gap-3 mt-4 items-center">
-                              <button
-                                onClick={() =>
-                                  setCurrentFilteredPage((p) =>
-                                    Math.max(p - 1, 1)
-                                  )
-                                }
-                                disabled={currentFilteredPage === 1}
-                                className="px-3 py-1 bg-[#222] rounded disabled:opacity-50 cursor-pointer"
-                              >
-                                Prev
-                              </button>
-                              <span className="text-white">
-                                {currentFilteredPage} /{" "}
-                                {Math.ceil(filteredGames.length / gamesPerPage)}
-                              </span>
-                              <button
-                                onClick={() =>
-                                  setCurrentFilteredPage((p) =>
-                                    p <
-                                    Math.ceil(
-                                      filteredGames.length / gamesPerPage
-                                    )
-                                      ? p + 1
-                                      : p
-                                  )
-                                }
-                                disabled={
-                                  currentFilteredPage ===
-                                  Math.ceil(filteredGames.length / gamesPerPage)
-                                }
-                                className="px-3 py-1 bg-[#222] rounded disabled:opacity-50 cursor-pointer"
-                              >
-                                Next
-                              </button>
-                            </div>
+                            <Selector
+                              setDisplayedGames={setDisplayedGames}
+                              setLoadedGames={setLoadedGames}
+                              selectedMonth={selectedMonth}
+                              selectedYear={selectedYear}
+                              setMonthlyGames={setMonthlyGames}
+                              setSelectedMonth={setSelectedMonth}
+                              setSelectedYear={setSelectedYear}
+                              setShowYearDropdown={setShowYearDropdown}
+                              showYearDropdown={showYearDropdown}
+                              monthlyGames={monthlyGames}
+                              yearRef={yearRef}
+                              username={username}
+                              archiveMap={archiveMap}
+                            />
                           </>
                         )}
                       </div>

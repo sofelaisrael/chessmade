@@ -44,7 +44,7 @@ const Navbar = ({ username, setUsername, profile }) => {
   return (
     <nav className="flex justify-between items-center px-6 py-4 bg-[#1e1e1e] text-white">
       {/* App Logo / Title */}
-      <h1 className="text-xl font-bold">Chess Analytics</h1>
+      <h1 className="text-xl font-bold">ChessMore</h1>
 
       {/* Profile Section */}
       <div className="relative">
